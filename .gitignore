@@ -321,3 +321,5 @@ ASALocalRun/
 # MSBuild Binary and Structured Log
 *.binlog
 
+# freeglut Binaries are to be included
+!freeglut/**
