@@ -322,4 +322,4 @@ ASALocalRun/
 *.binlog
 
 # freeglut Binaries are to be included
-!freeglut/**
+!Peschard_JeanPaul_ICG_CS6610/freeglut/**
