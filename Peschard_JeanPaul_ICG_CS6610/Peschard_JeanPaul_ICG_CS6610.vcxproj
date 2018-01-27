@@ -88,20 +88,23 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Users\u1070819\Documents\Visual Studio 2017\Projects\Peschard_JeanPaul_ICG_CS6610\Peschard_JeanPaul_ICG_CS6610\freeglut\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ProjectDir)freeglut\include;$(ProjectDir)glew\include;%(AdditionalIncludeDirectories);$(ProjectDir)Utilities</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
-      <AdditionalLibraryDirectories>C:\Users\u1070819\Documents\Visual Studio 2017\Projects\Peschard_JeanPaul_ICG_CS6610\Peschard_JeanPaul_ICG_CS6610\freeglut\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)freeglut\lib;$(ProjectDir)glew\lib\$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
+      <AdditionalDependencies>glew32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
       <Command>
       </Command>
     </PreBuildEvent>
     <CustomBuildStep>
-      <Command>xcopy /y "$(ProjectDir)\freeglut\bin\freeglut.dll" "$(OutDir)"</Command>
+      <Command>xcopy /y "$(ProjectDir)freeglut\bin\freeglut.dll" "$(OutDir)"
+xcopy /y "$(ProjectDir)glew\bin\$(Platform)\glew32.dll" "$(OutDir)"
+xcopy /y "$(ProjectDir)Models" "$(OutDir)"</Command>
       <Outputs>ALWAYS_RUN</Outputs>
     </CustomBuildStep>
   </ItemDefinitionGroup>
@@ -111,20 +114,23 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Users\u1070819\Documents\Visual Studio 2017\Projects\Peschard_JeanPaul_ICG_CS6610\Peschard_JeanPaul_ICG_CS6610\freeglut\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ProjectDir)freeglut\include;$(ProjectDir)glew\include;$(ProjectDir)Utilities;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
-      <AdditionalLibraryDirectories>C:\Users\u1070819\Documents\Visual Studio 2017\Projects\Peschard_JeanPaul_ICG_CS6610\Peschard_JeanPaul_ICG_CS6610\freeglut\lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)freeglut\lib\x64;$(ProjectDir)glew\lib\$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
+      <AdditionalDependencies>glew32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
       <Command>
       </Command>
     </PreBuildEvent>
     <CustomBuildStep>
-      <Command>xcopy /y "$(ProjectDir)\freeglut\bin\$(Platform)\freeglut.dll" "$(OutDir)"</Command>
+      <Command>xcopy /y "$(ProjectDir)freeglut\bin\$(Platform)\freeglut.dll" "$(OutDir)"
+xcopy /y "$(ProjectDir)glew\bin\$(Platform)\glew32.dll" "$(OutDir)"
+xcopy /y "$(ProjectDir)Models" "$(OutDir)"</Command>
       <Outputs>ALWAYS_RUN</Outputs>
     </CustomBuildStep>
   </ItemDefinitionGroup>
@@ -136,22 +142,25 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Users\u1070819\Documents\Visual Studio 2017\Projects\Peschard_JeanPaul_ICG_CS6610\Peschard_JeanPaul_ICG_CS6610\freeglut\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ProjectDir)freeglut\include;%(AdditionalIncludeDirectories);$(ProjectDir)Utilities</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>C:\Users\u1070819\Documents\Visual Studio 2017\Projects\Peschard_JeanPaul_ICG_CS6610\Peschard_JeanPaul_ICG_CS6610\freeglut\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)freeglut\lib;$(ProjectDir)glew\lib\$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
+      <AdditionalDependencies>glew32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
       <Command>
       </Command>
     </PreBuildEvent>
     <CustomBuildStep>
-      <Command>xcopy /y "$(ProjectDir)\freeglut\bin\freeglut.dll" "$(OutDir)"</Command>
+      <Command>xcopy /y "$(ProjectDir)freeglut\bin\freeglut.dll" "$(OutDir)"
+xcopy /y "$(ProjectDir)glew\bin\$(Platform)\glew32.dll" "$(OutDir)"
+xcopy /y "$(ProjectDir)Models" "$(OutDir)"</Command>
       <Outputs>ALWAYS_RUN</Outputs>
     </CustomBuildStep>
   </ItemDefinitionGroup>
@@ -163,27 +172,53 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Users\u1070819\Documents\Visual Studio 2017\Projects\Peschard_JeanPaul_ICG_CS6610\Peschard_JeanPaul_ICG_CS6610\freeglut\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>NDEBUG;_WINDOWS;%(PreprocessorDefinitions)_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ProjectDir)freeglut\include;$(ProjectDir)glew\include;$(ProjectDir)Utilities;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>C:\Users\u1070819\Documents\Visual Studio 2017\Projects\Peschard_JeanPaul_ICG_CS6610\Peschard_JeanPaul_ICG_CS6610\freeglut\lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)freeglut\lib\x64;$(ProjectDir)glew\lib\$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
+      <AdditionalDependencies>glew32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
       <Command>
       </Command>
     </PreBuildEvent>
     <CustomBuildStep>
-      <Command>xcopy /y "$(ProjectDir)\freeglut\bin\$(Platform)\freeglut.dll" "$(OutDir)"</Command>
+      <Command>xcopy /y "$(ProjectDir)freeglut\bin\$(Platform)\freeglut.dll" "$(OutDir)"
+xcopy /y "$(ProjectDir)glew\bin\$(Platform)\glew32.dll" "$(OutDir)"
+xcopy /y "$(ProjectDir)Models" "$(OutDir)"</Command>
       <Outputs>ALWAYS_RUN</Outputs>
     </CustomBuildStep>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Utilities\cyBVH.h" />
+    <ClInclude Include="Utilities\cyColor.h" />
+    <ClInclude Include="Utilities\cyCore.h" />
+    <ClInclude Include="Utilities\cyGL.h" />
+    <ClInclude Include="Utilities\cyHairFile.h" />
+    <ClInclude Include="Utilities\cyHeap.h" />
+    <ClInclude Include="Utilities\cyIPoint.h" />
+    <ClInclude Include="Utilities\cyLightingGrid.h" />
+    <ClInclude Include="Utilities\cyMatrix.h" />
+    <ClInclude Include="Utilities\cyPoint.h" />
+    <ClInclude Include="Utilities\cyPointCloud.h" />
+    <ClInclude Include="Utilities\cyQuat.h" />
+    <ClInclude Include="Utilities\cySampleElim.h" />
+    <ClInclude Include="Utilities\cySpatial.h" />
+    <ClInclude Include="Utilities\cyString.h" />
+    <ClInclude Include="Utilities\cyTimer.h" />
+    <ClInclude Include="Utilities\cyTriMesh.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Utilities\LICENSE" />
+    <None Include="Utilities\README.md" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
