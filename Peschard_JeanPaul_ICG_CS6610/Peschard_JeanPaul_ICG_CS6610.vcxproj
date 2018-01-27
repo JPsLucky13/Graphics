@@ -92,7 +92,7 @@
       <AdditionalIncludeDirectories>$(ProjectDir)freeglut\include;$(ProjectDir)glew\include;%(AdditionalIncludeDirectories);$(ProjectDir)Utilities</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Console</SubSystem>
       <AdditionalLibraryDirectories>$(ProjectDir)freeglut\lib;$(ProjectDir)glew\lib\$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
       <AdditionalDependencies>glew32.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -118,7 +118,7 @@ xcopy /y "$(ProjectDir)Models" "$(OutDir)"</Command>
       <AdditionalIncludeDirectories>$(ProjectDir)freeglut\include;$(ProjectDir)glew\include;$(ProjectDir)Utilities;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Console</SubSystem>
       <AdditionalLibraryDirectories>$(ProjectDir)freeglut\lib\x64;$(ProjectDir)glew\lib\$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
       <AdditionalDependencies>glew32.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -146,7 +146,7 @@ xcopy /y "$(ProjectDir)Models" "$(OutDir)"</Command>
       <AdditionalIncludeDirectories>$(ProjectDir)freeglut\include;%(AdditionalIncludeDirectories);$(ProjectDir)Utilities</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>$(ProjectDir)freeglut\lib;$(ProjectDir)glew\lib\$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -176,7 +176,7 @@ xcopy /y "$(ProjectDir)Models" "$(OutDir)"</Command>
       <AdditionalIncludeDirectories>$(ProjectDir)freeglut\include;$(ProjectDir)glew\include;$(ProjectDir)Utilities;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>$(ProjectDir)freeglut\lib\x64;$(ProjectDir)glew\lib\$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
