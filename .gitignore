@@ -323,3 +323,4 @@ ASALocalRun/
 
 # freeglut Binaries are to be included
 !Peschard_JeanPaul_ICG_CS6610/freeglut/**
+!Peschard_JeanPaul_ICG_CS6610/glew/**
