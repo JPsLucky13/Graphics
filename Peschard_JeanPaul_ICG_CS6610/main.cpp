@@ -40,7 +40,7 @@ cy::Point3f mouseDirection;
 //Matrices
 cy::Matrix4<float> modelMatrix;
 cy::Matrix4<float> cameraPositionMatrix = cy::Matrix4<float>::MatrixTrans(cy::Point3f(0.0f,0.0f,-50.0f));
-cy::Matrix4<float> cameraRotationMatrix = cy::Matrix4<float>::MatrixRotationY(0.0f) * cy::Matrix4<float>::MatrixRotationX(-1.5708f);
+cy::Matrix4<float> cameraRotationMatrix = cy::Matrix4<float>::MatrixRotationY(0.0f) * cy::Matrix4<float>::MatrixRotationX(0.0f);
 cy::Matrix3<float> inverseTransposeOfView;
 cy::Matrix4<float> viewMatrix;
 cy::Matrix4<float> projectionMatrix = cy::Matrix4<float>::MatrixPerspective(0.785398f, screenWidth / screenHeight, 0.1f, 100);
@@ -48,17 +48,20 @@ cy::Matrix4<float> mvp;
 
 //Light
 cy::Matrix4<float> lightMatrix;
-cy::Matrix4<float> lightPositionMatrix = cy::Matrix4<float>::MatrixTrans(cy::Point3f(0.0f, 0.0f, 100.0f));
+cy::Matrix4<float> lightPositionMatrix = cy::Matrix4<float>::MatrixTrans(cy::Point3f(0.0f, 0.0f, 200.0f));
 cy::Matrix4<float> lightRotationMatrix = cy::Matrix4<float>::MatrixRotationY(0.0f) * cy::Matrix4<float>::MatrixRotationX(0.0f);
 float currentLightXRotation = 0.0f;
 float currentLightYRotation = 0.0f;
+float currentLightZRotation = 0.0f;
 float oldLightXRotation = 0.0f;
 float oldLightYRotation = 0.0f;
+float oldLightZRotation = 0.0f;
 float rotationLightX = 0.0f;
 float rotationLightY = 0.0f;
+float rotationLightZ = 0.0f;
 
 //Viewer
-cy::Point3f viewerPosition;
+cy::Point4f viewerPosition;
 
 //Camera
 float cameraDistance = 0.0f;
@@ -67,7 +70,7 @@ float currentCameraXRotation = 0.0f;
 float oldCameraYRotation = 0.0f;
 float currentCameraYRotation = 0.0f;
 float smoothFactor = 0.01f;
-float rotationX = -1.5708f;
+float rotationX = 0.0f;
 float rotationY = 0.0f;
 
 //Toggle Projection
@@ -95,10 +98,10 @@ void Display()
 	//glClearColor(GLclampf(red), GLclampf(green), GLclampf(blue), GLclampf(alpha));
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-	modelMatrix = cy::Matrix4<float>::MatrixTrans(-(mesh.GetBoundMin() + mesh.GetBoundMax())* 0.5f);
+	modelMatrix = cyMatrix4f::MatrixRotationX(-2 * 0.785398f) * cy::Matrix4<float>::MatrixTrans(-(mesh.GetBoundMin() + mesh.GetBoundMax())* 0.5f);
 	viewMatrix = cameraPositionMatrix * cameraRotationMatrix;
-	lightMatrix = lightPositionMatrix * lightRotationMatrix;
-	viewerPosition = cameraPositionMatrix.GetTrans();
+	lightMatrix = viewMatrix * lightRotationMatrix * lightPositionMatrix;
+	viewerPosition = viewMatrix * cameraPositionMatrix.GetTrans();
 
 	mvp = projectionMatrix * viewMatrix * modelMatrix;
 	inverseTransposeOfView = (viewMatrix * modelMatrix).GetSubMatrix3();
@@ -110,6 +113,7 @@ void Display()
 	shaderProgram.SetUniformMatrix4("mvp",mvp.data);
 	shaderProgram.SetUniformMatrix3("inverseCM", inverseTransposeOfView.data);
 	shaderProgram.SetUniformMatrix4("modelMatrix", modelMatrix.data);
+	shaderProgram.SetUniformMatrix4("viewMatrix", viewMatrix.data);
 	shaderProgram.SetUniform("lightPosition", lightMatrix.GetTrans());
 	shaderProgram.SetUniform("viewerPosition", viewerPosition);
 	glDrawArrays(GL_TRIANGLES, 0, mesh.NF() * 3);
@@ -186,53 +190,49 @@ void MouseMovement(int x, int y)
 	{
 		leftCtrl = false;
 	}
-
-	//Light Rotation
-	if (leftCtrl && leftMouseDown)
+	
+	//Update the mouse	
+	if (leftMouseDown)
 	{
-		currentLightXRotation = static_cast<float>(y);
-		currentLightYRotation = static_cast<float>(x);
+		//Light rotation
+		if (leftCtrl)
+		{
+			currentLightXRotation = static_cast<float>(y);
+			currentLightYRotation = static_cast<float>(x);
 
-		float offsetX = currentLightXRotation - oldLightXRotation;
-		float offsetY = currentLightYRotation - oldLightYRotation;
+			float offsetX = currentLightXRotation - oldLightXRotation;
+			float offsetY = currentLightYRotation - oldLightYRotation;
 
-		oldLightXRotation = static_cast<float>(y);
-		oldLightYRotation = static_cast<float>(x);
+			oldLightXRotation = static_cast<float>(y);
+			oldLightYRotation = static_cast<float>(x);
 
-		rotationLightX += offsetX * 0.0174533f * .0035f;
-		rotationLightY += offsetY * 0.0174533f;
+			rotationLightX += offsetX * 0.0174533f;
+			rotationLightY += offsetY * 0.0174533f;
 
-		cy::Matrix4f xRotationMatrix = cy::Matrix4f::MatrixRotationX(rotationLightX);
-		cy::Matrix4f yRotationMatrix = cy::Matrix4f::MatrixRotationY(rotationLightY);
+			cy::Matrix4f xRotationMatrix = cy::Matrix4f::MatrixRotationX(rotationLightX);
+			cy::Matrix4f yRotationMatrix = cy::Matrix4f::MatrixRotationY(rotationLightY);
 
-		lightRotationMatrix =  xRotationMatrix;
-		cy::Point3f lightPositionInModelSpace = modelMatrix.GetSubMatrix3() * lightPositionMatrix.GetTrans();
-		cy::Point3f rotatedLightPositionInModelSpace = lightRotationMatrix.GetSubMatrix3() * lightPositionInModelSpace;
-		cy::Point3f rotatedLightPositionInWorldSpace = modelMatrix.GetSubMatrix3().GetInverse() * rotatedLightPositionInModelSpace;
-		lightPositionMatrix.SetTrans(rotatedLightPositionInWorldSpace);
-	}
+			lightRotationMatrix = yRotationMatrix * xRotationMatrix;			
+		}
+		//Camera Rotation
+		else {
+			currentCameraXRotation = static_cast<float>(y);
+			currentCameraYRotation = static_cast<float>(x);
 
-	//Update the mouse
+			float offsetX = currentCameraXRotation - oldCameraXRotation;
+			float offsetY = currentCameraYRotation - oldCameraYRotation;
 
-	//Camera Rotation
-	else if (leftMouseDown)
-	{
-		currentCameraXRotation = static_cast<float>(y);
-		currentCameraYRotation = static_cast<float>(x);
+			oldCameraXRotation = static_cast<float>(y);
+			oldCameraYRotation = static_cast<float>(x);
 
-		float offsetX = currentCameraXRotation - oldCameraXRotation;
-		float offsetY = currentCameraYRotation - oldCameraYRotation;
+			rotationX += offsetX * 0.0174533f;
+			rotationY += offsetY * 0.0174533f;
 
-		oldCameraXRotation = static_cast<float>(y);
-		oldCameraYRotation = static_cast<float>(x);
+			cy::Matrix4f xRotationMatrix = cy::Matrix4f::MatrixRotationX(rotationX);
+			cy::Matrix4f yRotationMatrix = cy::Matrix4f::MatrixRotationY(rotationY);
 
-		rotationX += offsetX * 0.0174533f;
-		rotationY += offsetY * 0.0174533f;
-
-		cy::Matrix4f xRotationMatrix = cy::Matrix4f::MatrixRotationX(rotationX);
-		cy::Matrix4f yRotationMatrix = cy::Matrix4f::MatrixRotationY(rotationY);
-
-		cameraRotationMatrix = yRotationMatrix * xRotationMatrix;
+			cameraRotationMatrix = yRotationMatrix * xRotationMatrix;
+		}
 
 	}
 
@@ -325,11 +325,8 @@ int main(int argc, char* argv [])
 	glGenBuffers(1, &NBO);
 	glBindBuffer(GL_ARRAY_BUFFER, NBO);
 
+	mesh.ComputeNormals();
 
-	if (!mesh.HasNormals())
-	{
-		mesh.ComputeNormals();
-	}
 
 	//Create the array of vertex normals from the triangle vertex normals
 	cy::Point3f * triangleVertexNormals = new cy::Point3f[mesh.NF() * 3];

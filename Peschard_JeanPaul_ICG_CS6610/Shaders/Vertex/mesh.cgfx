@@ -6,21 +6,18 @@ layout (location = 1) in vec3 Normal;
 uniform mat4 mvp;
 uniform mat3 inverseCM;
 uniform mat4 modelMatrix;
-uniform vec3 lightPosition;
-uniform vec3 viewerPosition;
+uniform mat4 viewMatrix;
+
 
 out vec3 o_VertexPos;
 out vec3 o_Normal;
-out vec3 o_NormalWorld;
-out vec3 o_LightPos;
-out vec3 o_ViewerPos;
+out vec3 o_NormalCameraSpace;
 
 void main()
 {
 	gl_Position = mvp * vec4(Position, 1.0);
-	o_VertexPos = mat3(modelMatrix) * Position;
+	mat4 modelViewMatrix = viewMatrix * modelMatrix;
+	o_VertexPos = vec3(modelViewMatrix * vec4(Position,1.0));
 	o_Normal = inverseCM * Normal;
-	o_NormalWorld = Normal;
-	o_LightPos = lightPosition;
-	o_ViewerPos = viewerPosition;
+	o_NormalCameraSpace = transpose(inverse(mat3(modelViewMatrix))) * Normal;
 }

@@ -2,23 +2,24 @@
 
 out vec4 FragColor;
 
+uniform vec3 lightPosition;
+uniform vec3 viewerPosition;
+
 in vec3 o_VertexPos;
 in vec3 o_Normal;
-in vec3 o_NormalWorld;
-in vec3 o_LightPos;
-in vec3 o_ViewerPos;
+in vec3 o_NormalCameraSpace;
 
 vec3 diffuse = vec3(1.0,0.0,0.0);
 vec3 ambient = vec3(0.2,0.0,0.0);
-vec3 specular = vec3(1.0,1.0,1.0);
+vec3 specular = vec3(0.7,0.7,0.7);
 float alpha = 50;
 
 void main()
 {
 
-	vec3 normalizedNormal = normalize(o_NormalWorld);
-	vec3 lightVector = normalize(o_LightPos - o_VertexPos);
-	vec3 viewerVector = normalize (o_ViewerPos - o_VertexPos);
+	vec3 normalizedNormal = normalize(o_NormalCameraSpace);
+	vec3 lightVector = normalize(lightPosition - o_VertexPos);
+	vec3 viewerVector = normalize (viewerPosition - o_VertexPos);
 
 	vec3 half = normalize(lightVector + viewerVector);
 	vec3 o_Light = (clamp(dot(lightVector,normalizedNormal),0.0,1.0) * diffuse) + specular *  pow(clamp(dot(half,normalizedNormal),0.0,1.0),alpha) + ambient;
