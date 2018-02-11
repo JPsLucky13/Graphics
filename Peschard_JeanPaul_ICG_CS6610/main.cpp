@@ -94,7 +94,7 @@ std::string GetParentFolder(const char * fileName)
 
 	for (int i = strlen(newFilePath) - 1; i > 0; --i)
 	{
-		if (newFilePath[i] == '\/')
+		if (newFilePath[i] == '\\')
 		{
 			newFilePath[i+1] = '\0';
 			break;
