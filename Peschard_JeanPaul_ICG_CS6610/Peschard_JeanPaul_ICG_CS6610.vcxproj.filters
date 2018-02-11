@@ -16,10 +16,16 @@
     <Filter Include="Utilities">
       <UniqueIdentifier>{429c9a35-3cef-49c5-89c7-510be3d2bd67}</UniqueIdentifier>
     </Filter>
+    <Filter Include="lodepng">
+      <UniqueIdentifier>{cb9089b6-5f78-40a3-8567-257d18ce7fd9}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="lodepng\lodepng.cpp">
+      <Filter>lodepng</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -74,9 +80,14 @@
     <ClInclude Include="Utilities\cyTriMesh.h">
       <Filter>Utilities</Filter>
     </ClInclude>
+    <ClInclude Include="lodepng\lodepng.h">
+      <Filter>lodepng</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Utilities\LICENSE" />
-    <None Include="Utilities\README.md" />
+    <None Include="Utilities\README.md">
+      <Filter>lodepng</Filter>
+    </None>
   </ItemGroup>
 </Project>

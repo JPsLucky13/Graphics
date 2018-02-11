@@ -3,6 +3,7 @@
 #include "cyTriMesh.h"
 #include "cyGL.h"
 #include "cyMatrix.h"
+#include "lodepng.h"
 
 //Screen values
 const int screenWidth = 1024;
@@ -21,9 +22,20 @@ GLuint VBO;
 //Normal Buffer
 GLuint NBO;
 
+//UV Buffer
+GLuint UVBO;
+
+//Texture Objects
+GLuint TO;
+GLuint TO2;
+
+//Vertex Array Buffer Object
 GLuint VAO;
 cy::TriMesh mesh;
 cy::GLSLProgram shaderProgram;
+
+//The texture unit type
+GLenum textureUnitType = GL_TEXTURE_2D;
 
 //Keyboard states
 bool leftCtrl = false;
@@ -76,11 +88,51 @@ float rotationY = 0.0f;
 //Toggle Projection
 bool toggleProjection = false;
 
-void CreateMesh(char * fileName)
+std::string GetParentFolder(const char * fileName)
+{
+	char * newFilePath = const_cast<char *>(fileName);
+
+	for (int i = strlen(newFilePath) - 1; i > 0; --i)
+	{
+		if (newFilePath[i] == '\/')
+		{
+			newFilePath[i+1] = '\0';
+			break;
+		}
+	}
+
+	std::string result = newFilePath;
+
+	return result;
+}
+
+
+void CreateMesh(const char * fileName)
 {	
 	bool result = mesh.LoadFromFileObj(fileName);
 	mesh.ComputeBoundingBox();
+
 }
+
+void CreateTexture(std::string fileName)
+{
+	std::vector<unsigned char> image; //the raw pixels
+	unsigned width, height;
+
+	//decode
+	unsigned error = lodepng::decode(image, width, height, fileName);
+
+	//if there's an error, display it
+	if (error) std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
+
+	glTexImage2D(textureUnitType, 0, GL_RGBA,width,height,0,GL_RGBA,GL_UNSIGNED_BYTE,image.data());
+	
+	glTexParameterf(textureUnitType, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameterf(textureUnitType, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	glGenerateMipmap(textureUnitType);
+}
+
 
 void CreateShaders()
 {
@@ -116,6 +168,13 @@ void Display()
 	shaderProgram.SetUniformMatrix4("viewMatrix", viewMatrix.data);
 	shaderProgram.SetUniform("lightPosition", lightMatrix.GetTrans());
 	shaderProgram.SetUniform("viewerPosition", viewerPosition);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(textureUnitType, TO);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(textureUnitType, TO2);
+
+
 	glDrawArrays(GL_TRIANGLES, 0, mesh.NF() * 3);
 	glutSwapBuffers();
 }
@@ -303,6 +362,9 @@ int main(int argc, char* argv [])
 	glGenBuffers(1, &VBO);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
+
+
+
 	//Create the array of vertices from the triangle vertices
 	cy::Point3f * triangleVertices = new cy::Point3f[mesh.NF() * 3];
 
@@ -345,8 +407,39 @@ int main(int argc, char* argv [])
 	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
-	CreateShaders();
+	glGenBuffers(1, &UVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, UVBO);
 
+	//Create the array of vertex normals from the triangle vertex normals
+	cy::Point2f * triangleVertexTextureCoords = new cy::Point2f[mesh.NF() * 3];
+
+	unsigned int vertexTextureIndex = 0;
+
+	for (size_t i = 0; i < mesh.NF(); i++)
+	{
+		triangleVertexTextureCoords[vertexTextureIndex] = cy::Point2f(mesh.VT(mesh.FT(i).v[0]));
+		triangleVertexTextureCoords[vertexTextureIndex + 1] = cy::Point2f(mesh.VT(mesh.FT(i).v[1]));
+		triangleVertexTextureCoords[vertexTextureIndex + 2] = cy::Point2f(mesh.VT(mesh.FT(i).v[2]));
+		vertexTextureIndex += 3;
+	}
+	glBufferData(GL_ARRAY_BUFFER, mesh.NF() * 3 * sizeof(cy::Point2f), triangleVertexTextureCoords, GL_STATIC_DRAW);
+
+	glEnableVertexAttribArray(2);
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, 0);
+	
+	glGenTextures(1, &TO);
+	glBindTexture(textureUnitType, TO);
+
+	//Create the diffuse texture
+	CreateTexture(GetParentFolder(argv[1]).append(mesh.M(0).map_Kd.data));
+
+	glGenTextures(1, &TO2);
+	glBindTexture(textureUnitType, TO2);
+
+	//Create the specular texture
+	CreateTexture(GetParentFolder(argv[1]).append(mesh.M(0).map_Ks.data));
+
+	CreateShaders();
 	glutMainLoop();
 
 	return 0;
