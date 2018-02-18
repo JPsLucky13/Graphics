@@ -380,7 +380,7 @@ void MouseMovement(int x, int y)
 			lightRotationMatrix = yRotationMatrix * xRotationMatrix;			
 		}
 
-		if (alt)
+		else if (alt)
 		{
 			currentPlaneXRotation = static_cast<float>(y);
 			currentPlaneYRotation = static_cast<float>(x);
@@ -402,7 +402,7 @@ void MouseMovement(int x, int y)
 		}
 
 		//Camera Rotation
-		else {
+		else if(!leftCtrl && !alt){
 			currentCameraXRotation = static_cast<float>(y);
 			currentCameraYRotation = static_cast<float>(x);
 
