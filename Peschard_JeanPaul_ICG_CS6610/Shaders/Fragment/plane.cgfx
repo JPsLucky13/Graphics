@@ -1,0 +1,14 @@
+#version 330 core
+
+out vec4 FragColor;
+
+uniform sampler2D sampler;
+
+//Diffuse and Specular Textures
+in vec2 o_TexCoord0;
+
+void main()
+{
+	vec3 diffuse = vec3(texture(sampler, o_TexCoord0));
+	FragColor = vec4(diffuse,1.0);
+}
