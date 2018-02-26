@@ -1,14 +1,14 @@
 #version 330 core
 
 layout (location = 0) in vec3 Position;
-layout (location = 1) in vec2 TexCoord;
 
-out vec2 o_TexCoord0;
+out vec3 positionInModelSpace;
 
 uniform mat4 mvp;
+uniform mat4 mv;
 
 void main()
 {
+	positionInModelSpace = Position;
 	gl_Position = mvp * vec4(Position, 1.0);
-	o_TexCoord0 = TexCoord;
 }

@@ -1,0 +1,19 @@
+#version 330 core
+
+layout (location = 0) in vec3 Position;
+layout (location = 1) in vec3 Normal;
+layout (location = 2) in vec2 TexCoord;
+
+out vec3 pos_eye;
+out vec3 n_eye;
+
+uniform mat4 mvp;
+uniform mat4 mv;
+
+void main()
+{
+	pos_eye = vec3(mv * vec4(Position, 1.0));
+	n_eye = vec3(mv * vec4(Normal, 0.0));
+	gl_Position = mvp * vec4(Position, 1.0);
+
+}

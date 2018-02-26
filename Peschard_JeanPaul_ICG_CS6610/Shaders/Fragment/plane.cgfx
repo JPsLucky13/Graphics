@@ -2,13 +2,15 @@
 
 out vec4 FragColor;
 
-uniform sampler2D sampler;
+uniform sampler2D samplerPlane; 
+uniform mat4 reflectedMvp;
 
-//Diffuse and Specular Textures
-in vec2 o_TexCoord0;
+in vec3 positionInModelSpace;
 
 void main()
 {
-	vec3 diffuse = vec3(texture(sampler, o_TexCoord0));
-	FragColor = vec4(diffuse,1.0);
+	vec4 positionInClipSpace = reflectedMvp * vec4(positionInModelSpace,1.0);
+	vec2 uv = positionInClipSpace.xy / positionInClipSpace.w * 0.5 + 0.5;
+	
+	FragColor = texture(samplerPlane, uv);
 }

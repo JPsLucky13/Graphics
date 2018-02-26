@@ -113,7 +113,8 @@
       <Command>xcopy /y "$(ProjectDir)freeglut\bin\freeglut.dll" "$(OutDir)"
 xcopy /y "$(ProjectDir)glew\bin\$(Platform)\glew32.dll" "$(OutDir)"
 xcopy /E /S "$(ProjectDir)Models" "$(OutDir)\Models\" /y  /d
-xcopy /E /S "$(ProjectDir)Shaders" "$(OutDir)\Shaders\" /y  /d</Command>
+xcopy /E /S "$(ProjectDir)Shaders" "$(OutDir)\Shaders\" /y  /d
+xcopy /E /S "$(ProjectDir)Textures" "$(OutDir)\Textures\" /y  /d</Command>
       <Outputs>ALWAYS_RUN</Outputs>
     </CustomBuildStep>
   </ItemDefinitionGroup>
@@ -140,7 +141,8 @@ xcopy /E /S "$(ProjectDir)Shaders" "$(OutDir)\Shaders\" /y  /d</Command>
       <Command>xcopy /y "$(ProjectDir)freeglut\bin\$(Platform)\freeglut.dll" "$(OutDir)"
 xcopy /y "$(ProjectDir)glew\bin\$(Platform)\glew32.dll" "$(OutDir)"
 xcopy /E /S "$(ProjectDir)Models" "$(OutDir)\Models\" /y  /d
-xcopy /E /S "$(ProjectDir)Shaders" "$(OutDir)\Shaders\" /y  /d</Command>
+xcopy /E /S "$(ProjectDir)Shaders" "$(OutDir)\Shaders\" /y  /d
+xcopy /E /S "$(ProjectDir)Textures" "$(OutDir)\Textures\" /y  /d</Command>
       <Outputs>ALWAYS_RUN</Outputs>
     </CustomBuildStep>
   </ItemDefinitionGroup>
@@ -171,7 +173,8 @@ xcopy /E /S "$(ProjectDir)Shaders" "$(OutDir)\Shaders\" /y  /d</Command>
       <Command>xcopy /y "$(ProjectDir)freeglut\bin\freeglut.dll" "$(OutDir)"
 xcopy /y "$(ProjectDir)glew\bin\$(Platform)\glew32.dll" "$(OutDir)"
 xcopy /E /S "$(ProjectDir)Models" "$(OutDir)\Models\" /y  /d
-xcopy /E /S "$(ProjectDir)Shaders" "$(OutDir)\Shaders\" /y  /d</Command>
+xcopy /E /S "$(ProjectDir)Shaders" "$(OutDir)\Shaders\" /y  /d
+xcopy /E /S "$(ProjectDir)Textures" "$(OutDir)\Textures\" /y  /d</Command>
       <Outputs>ALWAYS_RUN</Outputs>
     </CustomBuildStep>
   </ItemDefinitionGroup>
@@ -202,7 +205,8 @@ xcopy /E /S "$(ProjectDir)Shaders" "$(OutDir)\Shaders\" /y  /d</Command>
       <Command>xcopy /y "$(ProjectDir)freeglut\bin\$(Platform)\freeglut.dll" "$(OutDir)"
 xcopy /y "$(ProjectDir)glew\bin\$(Platform)\glew32.dll" "$(OutDir)"
 xcopy /E /S "$(ProjectDir)Models" "$(OutDir)\Models\" /y  /d
-xcopy /E /S "$(ProjectDir)Shaders" "$(OutDir)\Shaders\" /y  /d</Command>
+xcopy /E /S "$(ProjectDir)Shaders" "$(OutDir)\Shaders\" /y  /d
+xcopy /E /S "$(ProjectDir)Textures" "$(OutDir)\Textures\" /y  /d</Command>
       <Outputs>ALWAYS_RUN</Outputs>
     </CustomBuildStep>
   </ItemDefinitionGroup>

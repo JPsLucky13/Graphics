@@ -24,6 +24,17 @@ GLuint VBPlane;
 GLuint UVBPlane;
 GLuint VAOPlane;
 
+//Vertex Buffer and UV buffer for the cube
+GLuint VBCube;
+GLuint VAOCube;
+
+//Vertex buffers for the sphere
+cy::TriMesh sphereMesh;
+GLuint VBSphere;
+GLuint NBSphere;
+GLuint UVBSphere;
+GLuint VAOSphere;
+
 //Normal Buffer
 GLuint NBO;
 
@@ -34,9 +45,18 @@ GLuint UVBO;
 GLuint TO;
 GLuint TO2;
 
+//Cube Mesh
+cy::TriMesh cubeMesh;
+
 //Texture Object for the plane
 GLuint TOPlane;
 cy::GLSLProgram planeShaderProgram;
+
+//Shader for the cube
+cy::GLSLProgram cubeShaderProgram;
+
+//Shader for the sphere
+cy::GLSLProgram sphereShaderProgram;
 
 //The Render Texture Object to draw the viewport on a texture
 cy::GLRenderTexture2D renderTexture;
@@ -48,6 +68,12 @@ cy::GLSLProgram shaderProgram;
 
 //The texture unit type
 GLenum textureUnitType = GL_TEXTURE_2D;
+
+//The texture unit for the cube map
+GLenum textureUnitCubeMap = GL_TEXTURE_CUBE_MAP;
+
+//The cube map texture
+cy::GLTextureCubeMap cubeMapTexture;
 
 //Keyboard states
 bool leftCtrl = false;
@@ -64,12 +90,13 @@ cy::Point3f mouseDirection;
 
 //Matrices
 cy::Matrix4<float> modelMatrix;
-cy::Matrix4<float> cameraPositionMatrix = cy::Matrix4<float>::MatrixTrans(cy::Point3f(0.0f,0.0f,-50.0f));
+cy::Matrix4<float> cameraPositionMatrix = cy::Matrix4<float>::MatrixTrans(cy::Point3f(0.0f,8.0f,-70.0f));
 cy::Matrix4<float> cameraRotationMatrix = cy::Matrix4<float>::MatrixRotationY(0.0f) * cy::Matrix4<float>::MatrixRotationX(0.0f);
 cy::Matrix3<float> inverseTransposeOfView;
 cy::Matrix4<float> viewMatrix;
-cy::Matrix4<float> projectionMatrix = cy::Matrix4<float>::MatrixPerspective(0.785398f, screenWidth / screenHeight, 0.1f, 100);
+cy::Matrix4<float> projectionMatrix = cy::Matrix4<float>::MatrixPerspective(0.785398f, screenWidth / screenHeight, 0.1f, 1000);
 cy::Matrix4<float> mvp;
+cy::Matrix4<float> mv;
 
 //Light
 cy::Matrix4<float> lightMatrix;
@@ -86,7 +113,7 @@ float rotationLightY = 0.0f;
 float rotationLightZ = 0.0f;
 
 //Plane
-cy::Matrix4<float> planePositionMatrix = cy::Matrix4<float>::MatrixTrans(cy::Point3f(0.0f, 0.0f, -50.0f));
+cy::Matrix4<float> planePositionMatrix = cy::Matrix4<float>::MatrixTrans(cy::Point3f(0.0f, -8.0f, 0.0f));
 cy::Matrix4<float> planeRotationMatrix = cy::Matrix4<float>::MatrixRotationY(0.0f) * cy::Matrix4<float>::MatrixRotationX(0.0f);
 float currentPlaneXRotation = 0.0f;
 float currentPlaneYRotation = 0.0f;
@@ -94,6 +121,11 @@ float oldPlaneXRotation = 0.0f;
 float oldPlaneYRotation = 0.0f;
 float rotationPlaneX = 0.0f;
 float rotationPlaneY = 0.0f;
+
+//Cube
+cy::Matrix4<float> cubePositionMatrix;
+cy::Matrix4<float> cubeRotationMatrix = cy::Matrix4<float>::MatrixRotationY(0.0f) * cy::Matrix4<float>::MatrixRotationX(0.0f);
+
 
 //Viewer
 cy::Point4f viewerPosition;
@@ -132,11 +164,87 @@ std::string GetParentFolder(const char * fileName)
 
 void CreateMesh(const char * fileName)
 {	
+	glGenVertexArrays(1, &VAO);
+	glBindVertexArray(VAO);
+
+	glGenBuffers(1, &VBO);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
 	bool result = mesh.LoadFromFileObj(fileName);
 	mesh.ComputeBoundingBox();
 
+	//Create the array of vertices from the triangle vertices
+	cy::Point3f * triangleVertices = new cy::Point3f[mesh.NF() * 3];
+
+	unsigned int vertexIndex = 0;
+
+	for (size_t i = 0; i < mesh.NF(); i++)
+	{
+		triangleVertices[vertexIndex] = mesh.V(mesh.F(i).v[0]);
+		triangleVertices[vertexIndex + 1] = mesh.V(mesh.F(i).v[1]);
+		triangleVertices[vertexIndex + 2] = mesh.V(mesh.F(i).v[2]);
+		vertexIndex += 3;
+	}
+
+	glBufferData(GL_ARRAY_BUFFER, mesh.NF() * 3 * sizeof(cy::Point3f), triangleVertices, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+	glGenBuffers(1, &NBO);
+	glBindBuffer(GL_ARRAY_BUFFER, NBO);
+
+	mesh.ComputeNormals();
+
+
+	//Create the array of vertex normals from the triangle vertex normals
+	cy::Point3f * triangleVertexNormals = new cy::Point3f[mesh.NF() * 3];
+
+	unsigned int vertexNormalIndex = 0;
+
+	for (size_t i = 0; i < mesh.NF(); i++)
+	{
+		triangleVertexNormals[vertexNormalIndex] = mesh.VN(mesh.FN(i).v[0]);
+		triangleVertexNormals[vertexNormalIndex + 1] = mesh.VN(mesh.FN(i).v[1]);
+		triangleVertexNormals[vertexNormalIndex + 2] = mesh.VN(mesh.FN(i).v[2]);
+		vertexNormalIndex += 3;
+	}
+
+	glBufferData(GL_ARRAY_BUFFER, mesh.NF() * 3 * sizeof(cy::Point3f), triangleVertexNormals, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
 }
 
+void CreateCubeMesh()
+{
+	//Generate and bind the cube array buffer 
+	glGenVertexArrays(1, &VAOCube);
+	glBindVertexArray(VAOCube);
+
+	//Generate and bind the cube buffer 
+	glGenBuffers(1, &VBCube);
+	glBindBuffer(GL_ARRAY_BUFFER, VBCube);
+
+	bool result = cubeMesh.LoadFromFileObj("Models/cube.obj");
+	cubeMesh.ComputeBoundingBox();
+
+	//Create the array of vertices from the triangle vertices
+	cy::Point3f * cubeVertices = new cy::Point3f[cubeMesh.NF() * 3];
+
+	unsigned int vertexIndex = 0;
+
+	for (size_t i = 0; i < cubeMesh.NF(); i++)
+	{
+		cubeVertices[vertexIndex] = cubeMesh.V(cubeMesh.F(i).v[0]);
+		cubeVertices[vertexIndex + 1] = cubeMesh.V(cubeMesh.F(i).v[1]);
+		cubeVertices[vertexIndex + 2] = cubeMesh.V(cubeMesh.F(i).v[2]);
+		vertexIndex += 3;
+	}
+
+	glBufferData(GL_ARRAY_BUFFER, cubeMesh.NF() * 3 * sizeof(cy::Point3f), cubeVertices, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+}
 
 void CreatePlaneMesh(float dimensions)
 {
@@ -151,36 +259,94 @@ void CreatePlaneMesh(float dimensions)
 	//Create the array of vertices from the triangle vertices
 	cy::Point3f * planeVertices = new cy::Point3f[6];
 
-	planeVertices[0] = cy::Point3f(-dimensions,-dimensions,0.0f);
-	planeVertices[1] = cy::Point3f(dimensions, -dimensions, 0.0f);
-	planeVertices[2] = cy::Point3f(-dimensions, dimensions, 0.0f);
-	planeVertices[3] = cy::Point3f(dimensions, -dimensions, 0.0f);
-	planeVertices[4] = cy::Point3f(dimensions,dimensions, 0.0f);
-	planeVertices[5] = cy::Point3f(-dimensions, dimensions, 0.0f);
+	planeVertices[0] = cy::Point3f(-dimensions,0.0f, -dimensions);
+	planeVertices[1] = cy::Point3f(dimensions,0.0f , -dimensions);
+	planeVertices[2] = cy::Point3f(-dimensions, 0.0f, dimensions);
+
+	planeVertices[3] = cy::Point3f(dimensions, 0.0f, -dimensions);
+	planeVertices[4] = cy::Point3f(dimensions,0.0f, dimensions);
+	planeVertices[5] = cy::Point3f(-dimensions, 0.0f, dimensions);
 
 	glBufferData(GL_ARRAY_BUFFER, 6 * sizeof(cy::Point3f), planeVertices, GL_STATIC_DRAW);
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-
-	//Generate and bind the plane buffer 
-	glGenBuffers(1, &UVBPlane);
-	glBindBuffer(GL_ARRAY_BUFFER, UVBPlane);
-
-	//Create the array of vertices from the triangle vertices
-	cy::Point2f * planeUVVertices = new cy::Point2f[6];
-
-	planeUVVertices[0] = cy::Point2f(0.0f,0.0f);
-	planeUVVertices[1] = cy::Point2f(1.0f,0.0f);
-	planeUVVertices[2] = cy::Point2f(0.0f,1.0f);
-	planeUVVertices[3] = cy::Point2f(1.0f,0.0f);
-	planeUVVertices[4] = cy::Point2f(1.0f,1.0f);
-	planeUVVertices[5] = cy::Point2f(0.0f,1.0f);
-
-	glBufferData(GL_ARRAY_BUFFER, 6 * sizeof(cy::Point2f), planeUVVertices, GL_STATIC_DRAW);
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, 0);
 }
 
+void CreateSphereMesh()
+{
+	//Generate and bind the cube array buffer 
+	glGenVertexArrays(1, &VAOSphere);
+	glBindVertexArray(VAOSphere);
+
+	//Generate and bind the cube buffer 
+	glGenBuffers(1, &VBSphere);
+	glBindBuffer(GL_ARRAY_BUFFER, VBSphere);
+
+	bool result = sphereMesh.LoadFromFileObj("Models/sphere.obj");
+	sphereMesh.ComputeBoundingBox();
+
+	//Create the array of vertices from the triangle vertices
+	cy::Point3f * sphereVertices = new cy::Point3f[sphereMesh.NF() * 3];
+
+	unsigned int vertexIndex = 0;
+
+	for (size_t i = 0; i < sphereMesh.NF(); i++)
+	{
+		sphereVertices[vertexIndex] = sphereMesh.V(sphereMesh.F(i).v[0]);
+		sphereVertices[vertexIndex + 1] = sphereMesh.V(sphereMesh.F(i).v[1]);
+		sphereVertices[vertexIndex + 2] = sphereMesh.V(sphereMesh.F(i).v[2]);
+		vertexIndex += 3;
+	}
+
+	glBufferData(GL_ARRAY_BUFFER, sphereMesh.NF() * 3 * sizeof(cy::Point3f), sphereVertices, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+	glGenBuffers(1, &NBSphere);
+	glBindBuffer(GL_ARRAY_BUFFER, NBSphere);
+
+	sphereMesh.ComputeNormals();
+
+
+	//Create the array of vertex normals from the triangle vertex normals
+	cy::Point3f * triangleVertexNormals = new cy::Point3f[sphereMesh.NF() * 3];
+
+	unsigned int vertexNormalIndex = 0;
+
+	for (size_t i = 0; i < sphereMesh.NF(); i++)
+	{
+		triangleVertexNormals[vertexNormalIndex] = sphereMesh.VN(sphereMesh.FN(i).v[0]);
+		triangleVertexNormals[vertexNormalIndex + 1] = sphereMesh.VN(sphereMesh.FN(i).v[1]);
+		triangleVertexNormals[vertexNormalIndex + 2] = sphereMesh.VN(sphereMesh.FN(i).v[2]);
+		vertexNormalIndex += 3;
+	}
+
+	glBufferData(GL_ARRAY_BUFFER, sphereMesh.NF() * 3 * sizeof(cy::Point3f), triangleVertexNormals, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+	glGenBuffers(1, &UVBSphere);
+	glBindBuffer(GL_ARRAY_BUFFER, UVBSphere);
+
+	//Create the array of vertex uvs from the triangle vertex uvs
+	cy::Point2f * triangleVertexTextureCoords = new cy::Point2f[sphereMesh.NF() * 3];
+
+	unsigned int vertexTextureIndex = 0;
+
+	for (size_t i = 0; i < sphereMesh.NF(); i++)
+	{
+		triangleVertexTextureCoords[vertexTextureIndex] = cy::Point2f(sphereMesh.VT(sphereMesh.FT(i).v[0]));
+		triangleVertexTextureCoords[vertexTextureIndex + 1] = cy::Point2f(sphereMesh.VT(sphereMesh.FT(i).v[1]));
+		triangleVertexTextureCoords[vertexTextureIndex + 2] = cy::Point2f(sphereMesh.VT(sphereMesh.FT(i).v[2]));
+		vertexTextureIndex += 3;
+	}
+	glBufferData(GL_ARRAY_BUFFER, sphereMesh.NF() * 3 * sizeof(cy::Point2f), triangleVertexTextureCoords, GL_STATIC_DRAW);
+
+	glEnableVertexAttribArray(2);
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, 0);
+
+
+}
 
 void CreateTexture(std::string fileName)
 {
@@ -199,6 +365,81 @@ void CreateTexture(std::string fileName)
 	glTexParameterf(textureUnitType, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 	glGenerateMipmap(textureUnitType);
+}
+
+void CreateCubeMapTextures()
+{
+	std::vector<unsigned char> image; //the raw pixels
+	unsigned width, height;
+
+	std::vector<std::string> fileNames;
+	fileNames.push_back("Textures/CubeTextures/cubemap_posx.png");
+	fileNames.push_back("Textures/CubeTextures/cubemap_negx.png");
+	fileNames.push_back("Textures/CubeTextures/cubemap_posy.png");
+	fileNames.push_back("Textures/CubeTextures/cubemap_negy.png");
+	fileNames.push_back("Textures/CubeTextures/cubemap_posz.png");
+	fileNames.push_back("Textures/CubeTextures/cubemap_negz.png");
+
+	
+	//decode
+	unsigned error = lodepng::decode(image, width, height, fileNames[0], LodePNGColorType::LCT_RGB);
+
+	//if there's an error, display it
+	if (error) std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
+
+	cubeMapTexture.SetImage(cubeMapTexture.POSITIVE_X, image.data(), 3, width, height);
+	image.clear();
+
+	//decode
+	error = lodepng::decode(image, width, height, fileNames[1], LodePNGColorType::LCT_RGB);
+
+	//if there's an error, display it
+	if (error) std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
+
+	cubeMapTexture.SetImage(cubeMapTexture.NEGATIVE_X, image.data(), 3, width, height);
+	image.clear();
+
+	//decode
+	error = lodepng::decode(image, width, height, fileNames[2], LodePNGColorType::LCT_RGB);
+
+	//if there's an error, display it
+	if (error) std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
+
+	cubeMapTexture.SetImage(cubeMapTexture.POSITIVE_Y, image.data(), 3, width, height);
+	image.clear();
+
+	//decode
+	error = lodepng::decode(image, width, height, fileNames[3], LodePNGColorType::LCT_RGB);
+
+	//if there's an error, display it
+	if (error) std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
+
+	cubeMapTexture.SetImage(cubeMapTexture.NEGATIVE_Y, image.data(), 3, width, height);
+	image.clear();
+
+	//decode
+	error = lodepng::decode(image, width, height, fileNames[4], LodePNGColorType::LCT_RGB);
+
+	//if there's an error, display it
+	if (error) std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
+
+	cubeMapTexture.SetImage(cubeMapTexture.POSITIVE_Z, image.data(), 3, width, height);
+	image.clear();
+
+	//decode
+	error = lodepng::decode(image, width, height, fileNames[5], LodePNGColorType::LCT_RGB);
+
+	//if there's an error, display it
+	if (error) std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
+
+	cubeMapTexture.SetImage(cubeMapTexture.NEGATIVE_Z, image.data(), 3, width, height);
+	image.clear();
+
+	cubeMapTexture.SetSeamless();
+	cubeMapTexture.SetFilteringMode(GL_LINEAR_MIPMAP_LINEAR, 0);
+	cubeMapTexture.SetMaxAnisotropy();
+	cubeMapTexture.BuildMipmaps();
+
 }
 
 
@@ -223,17 +464,57 @@ void CreatePlaneShaders()
 	planeShaderProgram.Build(&vertexShader, &fragmentShader);
 }
 
+void CreateCubeShaders()
+{
+	//The Shader Program
+	cy::GLSLShader vertexShader;
+	vertexShader.CompileFile("Shaders/Vertex/cube.cgfx", GL_VERTEX_SHADER);
+	cy::GLSLShader fragmentShader;
+	fragmentShader.CompileFile("Shaders/Fragment/cube.cgfx", GL_FRAGMENT_SHADER);
+	cubeShaderProgram.Build(&vertexShader, &fragmentShader);
+}
+
+void CreateSphereShaders()
+{
+	//The Shader Program
+	cy::GLSLShader vertexShader;
+	vertexShader.CompileFile("Shaders/Vertex/sphere.cgfx", GL_VERTEX_SHADER);
+	cy::GLSLShader fragmentShader;
+	fragmentShader.CompileFile("Shaders/Fragment/sphere.cgfx", GL_FRAGMENT_SHADER);
+	sphereShaderProgram.Build(&vertexShader, &fragmentShader);
+}
+
 void Display()
 {
 	//glClearColor(GLclampf(red), GLclampf(green), GLclampf(blue), GLclampf(alpha));
-	glClearColor(0.25f, 0.25f, 0.25f, 1.0f);
+
+	//Create the render target
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	renderTexture.Bind();
-	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-	modelMatrix = cyMatrix4f::MatrixRotationX(-2 * 0.785398f) * cy::Matrix4<float>::MatrixTrans(-(mesh.GetBoundMin() + mesh.GetBoundMax())* 0.5f);
-	viewMatrix = cameraPositionMatrix * cameraRotationMatrix;
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glDepthMask(GL_FALSE);
+	cy::Matrix4f cameraReflectedRotationMatrix = cyMatrix4f::MatrixRotationY(rotationY) * cyMatrix4f::MatrixRotationX(-rotationX);
+	viewMatrix = cameraPositionMatrix * cameraReflectedRotationMatrix;
+	mvp = projectionMatrix * cameraReflectedRotationMatrix;
+
+	cubeShaderProgram.Bind();
+	cubeShaderProgram.SetUniformMatrix4("mvp", mvp.data);
+
+	cubeMapTexture.Bind();
+
+	glBindVertexArray(VAOCube);
+	glDrawArrays(GL_TRIANGLES, 0, cubeMesh.NF() * 3);
+
+	glDepthMask(GL_TRUE);
+
+	//Draw teapot
+	modelMatrix = cy::Matrix4<float>::MatrixTrans(-(mesh.GetBoundMin() + mesh.GetBoundMax())* 0.5f);
+	viewMatrix = cameraPositionMatrix * cameraReflectedRotationMatrix;
 	lightMatrix = viewMatrix * lightRotationMatrix * lightPositionMatrix;
 	viewerPosition = viewMatrix * cameraPositionMatrix.GetTrans();
 
+	mv = viewMatrix * modelMatrix;
 	mvp = projectionMatrix * viewMatrix * modelMatrix;
 	inverseTransposeOfView = (viewMatrix * modelMatrix).GetSubMatrix3();
 	inverseTransposeOfView.Invert();
@@ -241,30 +522,79 @@ void Display()
 	cameraDistance = cameraPositionMatrix.GetTrans().Length();
 
 	shaderProgram.Bind();
-	shaderProgram.SetUniformMatrix4("mvp",mvp.data);
+	shaderProgram.SetUniformMatrix4("mv", mv.data);
+	shaderProgram.SetUniformMatrix4("mvp", mvp.data);
 	shaderProgram.SetUniformMatrix3("inverseCM", inverseTransposeOfView.data);
 	shaderProgram.SetUniformMatrix4("modelMatrix", modelMatrix.data);
 	shaderProgram.SetUniformMatrix4("viewMatrix", viewMatrix.data);
 	shaderProgram.SetUniform("lightPosition", lightMatrix.GetTrans());
 	shaderProgram.SetUniform("viewerPosition", viewerPosition);
 
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(textureUnitType, TO);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(textureUnitType, TO2);
+	cubeMapTexture.Bind();
 
 	//Set the parameters of the renderTexture object
 	glBindVertexArray(VAO);
 	glDrawArrays(GL_TRIANGLES, 0, mesh.NF() * 3);
 	renderTexture.Unbind();
 
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	modelMatrix = planePositionMatrix * planeRotationMatrix;
-	mvp = projectionMatrix * modelMatrix;
 
+	//Draw the cube map
+	glDepthMask(GL_FALSE);
+	viewMatrix = cameraPositionMatrix * cameraRotationMatrix;
+	mvp = projectionMatrix * cameraRotationMatrix;
+
+	cubeShaderProgram.Bind();
+	cubeShaderProgram.SetUniformMatrix4("mvp", mvp.data);
+
+	cubeMapTexture.Bind();
+
+	glBindVertexArray(VAOCube);
+	glDrawArrays(GL_TRIANGLES, 0, cubeMesh.NF() * 3);
+
+	glDepthMask(GL_TRUE);
+
+	//Draw teapot
+	modelMatrix = cy::Matrix4<float>::MatrixTrans(-(mesh.GetBoundMin() + mesh.GetBoundMax())* 0.5f);
+	viewMatrix = cameraPositionMatrix * cameraRotationMatrix;
+	lightMatrix = viewMatrix * lightRotationMatrix * lightPositionMatrix;
+	viewerPosition = viewMatrix * cameraPositionMatrix.GetTrans();
+
+	mv = viewMatrix * modelMatrix;
+	mvp = projectionMatrix * viewMatrix * modelMatrix;
+	inverseTransposeOfView = (viewMatrix * modelMatrix).GetSubMatrix3();
+	inverseTransposeOfView.Invert();
+	inverseTransposeOfView.Transpose();
+	cameraDistance = cameraPositionMatrix.GetTrans().Length();
+
+	shaderProgram.Bind();
+	shaderProgram.SetUniformMatrix4("mv", mv.data);
+	shaderProgram.SetUniformMatrix4("mvp", mvp.data);
+	shaderProgram.SetUniformMatrix3("inverseCM", inverseTransposeOfView.data);
+	shaderProgram.SetUniformMatrix4("modelMatrix", modelMatrix.data);
+	shaderProgram.SetUniformMatrix4("viewMatrix", viewMatrix.data);
+	shaderProgram.SetUniform("lightPosition", lightMatrix.GetTrans());
+	shaderProgram.SetUniform("viewerPosition", viewerPosition);
+
+	cubeMapTexture.Bind();
+
+	//Set the parameters of the renderTexture object
+	glBindVertexArray(VAO);
+	glDrawArrays(GL_TRIANGLES, 0, mesh.NF() * 3);
+
+	//Draw Plane
+	modelMatrix = planeRotationMatrix * planePositionMatrix;
+	viewMatrix = cameraPositionMatrix * cameraRotationMatrix;
+	mvp = projectionMatrix * viewMatrix * modelMatrix;
+
+	
 	planeShaderProgram.Bind();
+	planeShaderProgram.SetUniformMatrix4("mv", mv.data);
 	planeShaderProgram.SetUniformMatrix4("mvp", mvp.data);
+	viewMatrix = cameraPositionMatrix * cameraReflectedRotationMatrix;
+	mvp = projectionMatrix * viewMatrix * modelMatrix;
+	planeShaderProgram.SetUniformMatrix4("reflectedMvp", mvp.data);
+	planeShaderProgram.SetUniformMatrix4("viewMatrix", viewMatrix.data);
 
 	glActiveTexture(GL_TEXTURE0);
 	renderTexture.BindTexture();
@@ -483,7 +813,7 @@ int main(int argc, char* argv [])
 	glutInitWindowSize(screenWidth, screenHeight);
 	glutInitWindowPosition(0,0);
 	glutInitContextVersion(3, 3);
-	glutCreateWindow("Hello Teapot!");
+	glutCreateWindow("Reflections");
 	glEnable(GL_DEPTH_TEST);
 	glutKeyboardFunc(Keyboard);
 	glutSpecialFunc(SpecialKeyboard);
@@ -509,88 +839,21 @@ int main(int argc, char* argv [])
 	renderTexture.SetTextureMaxAnisotropy();
 	renderTexture.BuildTextureMipmaps();
 
-	glGenVertexArrays(1, &VAO);
-	glBindVertexArray(VAO);
-
-	glGenBuffers(1, &VBO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-
-	//Create the array of vertices from the triangle vertices
-	cy::Point3f * triangleVertices = new cy::Point3f[mesh.NF() * 3];
-
-	unsigned int vertexIndex = 0;
-
-	for (size_t i = 0; i < mesh.NF(); i++)
-	{
-		triangleVertices[vertexIndex] = mesh.V(mesh.F(i).v[0]);
-		triangleVertices[vertexIndex + 1] = mesh.V(mesh.F(i).v[1]);
-		triangleVertices[vertexIndex + 2] = mesh.V(mesh.F(i).v[2]);
-		vertexIndex += 3;
-	}
-
-	glBufferData(GL_ARRAY_BUFFER, mesh.NF() * 3 * sizeof(cy::Point3f),triangleVertices, GL_STATIC_DRAW);
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-
-	glGenBuffers(1, &NBO);
-	glBindBuffer(GL_ARRAY_BUFFER, NBO);
-
-	mesh.ComputeNormals();
-
-
-	//Create the array of vertex normals from the triangle vertex normals
-	cy::Point3f * triangleVertexNormals = new cy::Point3f[mesh.NF() * 3];
-
-	unsigned int vertexNormalIndex = 0;
-
-	for (size_t i = 0; i < mesh.NF(); i++)
-	{
-		triangleVertexNormals[vertexNormalIndex] = mesh.VN(mesh.FN(i).v[0]);
-		triangleVertexNormals[vertexNormalIndex + 1] = mesh.VN(mesh.FN(i).v[1]);
-		triangleVertexNormals[vertexNormalIndex + 2] = mesh.VN(mesh.FN(i).v[2]);
-		vertexNormalIndex += 3;
-	}
-
-	glBufferData(GL_ARRAY_BUFFER, mesh.NF() * 3 * sizeof(cy::Point3f), triangleVertexNormals, GL_STATIC_DRAW);
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
-
-	glGenBuffers(1, &UVBO);
-	glBindBuffer(GL_ARRAY_BUFFER, UVBO);
-
-	//Create the array of vertex uvs from the triangle vertex uvs
-	cy::Point2f * triangleVertexTextureCoords = new cy::Point2f[mesh.NF() * 3];
-
-	unsigned int vertexTextureIndex = 0;
-
-	for (size_t i = 0; i < mesh.NF(); i++)
-	{
-		triangleVertexTextureCoords[vertexTextureIndex] = cy::Point2f(mesh.VT(mesh.FT(i).v[0]));
-		triangleVertexTextureCoords[vertexTextureIndex + 1] = cy::Point2f(mesh.VT(mesh.FT(i).v[1]));
-		triangleVertexTextureCoords[vertexTextureIndex + 2] = cy::Point2f(mesh.VT(mesh.FT(i).v[2]));
-		vertexTextureIndex += 3;
-	}
-	glBufferData(GL_ARRAY_BUFFER, mesh.NF() * 3 * sizeof(cy::Point2f), triangleVertexTextureCoords, GL_STATIC_DRAW);
-
-	glEnableVertexAttribArray(2);
-	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, 0);
-	
-	glGenTextures(1, &TO);
-	glBindTexture(textureUnitType, TO);
-
-	//Create the diffuse texture
-	CreateTexture(GetParentFolder(path.c_str()).append(mesh.M(0).map_Kd.data));
-
-	glGenTextures(1, &TO2);
-	glBindTexture(textureUnitType, TO2);
-
-	//Create the specular texture
-	CreateTexture(GetParentFolder(path.c_str()).append(mesh.M(0).map_Ks.data));
 	CreateShaders();
 
 	//Create the plane Mesh
-	CreatePlaneMesh(10.0f);
+	CreatePlaneMesh(50.0f);
 	CreatePlaneShaders();
+	
+	//Create the cube Mesh
+	CreateCubeMesh();
+
+	CreateCubeMapTextures();
+	CreateCubeShaders();
+
+	//Create the sphere Mesh
+	CreateSphereMesh();
+	CreateSphereShaders();
 
 	glutMainLoop();
 	return 0;

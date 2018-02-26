@@ -1,0 +1,13 @@
+#version 330 core
+
+out vec4 FragColor;
+
+uniform samplerCube samplerCubeMap;
+
+//Diffuse and Specular Textures
+in vec3 o_TexCoord0;
+
+void main()
+{
+	FragColor = texture(samplerCubeMap, o_TexCoord0);	
+}

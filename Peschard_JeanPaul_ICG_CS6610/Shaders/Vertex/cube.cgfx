@@ -1,0 +1,13 @@
+#version 330 core
+
+layout (location = 0) in vec3 Position;
+
+out vec3 o_TexCoord0;
+
+uniform mat4 mvp;
+
+void main()
+{
+	gl_Position = mvp * vec4(Position, 1.0);
+	o_TexCoord0 = Position;
+}

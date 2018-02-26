@@ -4,7 +4,8 @@ out vec4 FragColor;
 
 uniform vec3 lightPosition;
 uniform vec3 viewerPosition;
-uniform sampler2D sampler;
+uniform samplerCube samplerCubeMap;
+uniform mat4 viewMatrix;
 
 in vec3 o_VertexPos;
 in vec3 o_Normal;
@@ -16,15 +17,27 @@ in vec2 o_TexCoord1;
 
 float alpha = 50;
 
+in vec3 pos_eye;
+in vec3 n_eye;
+
 void main()
 {
-	vec3 diffuse = vec3(texture2D(sampler, o_TexCoord0));
-	vec3 ambient = diffuse;
-	vec3 specular = vec3(texture2D(sampler, o_TexCoord1));
+	/* reflect ray around normal from eye to surface */
+	vec3 incident_eye = normalize(pos_eye);
+	vec3 normal = normalize(n_eye);
 
-	vec3 normalizedNormal = normalize(o_NormalCameraSpace);
-	vec3 lightVector = normalize(lightPosition - o_VertexPos);
-	vec3 viewerVector = normalize (viewerPosition - o_VertexPos);
+	vec3 reflected = reflect(incident_eye, normal);
+	// convert from eye to world space
+	reflected = vec3(inverse(viewMatrix) * vec4(reflected, 0.0));
+
+	//Blinn shading
+	vec3 diffuse = vec3(texture(samplerCubeMap, reflected));
+	vec3 ambient = diffuse;
+	vec3 specular = vec3(texture(samplerCubeMap, reflected));
+
+	vec3 normalizedNormal = normalize(n_eye);
+	vec3 lightVector = normalize(lightPosition - pos_eye);
+	vec3 viewerVector = normalize (viewerPosition - pos_eye);
 
 	vec3 half = normalize(lightVector + viewerVector);
 	vec3 o_Light = (clamp(dot(lightVector,normalizedNormal),0.0,1.0) * diffuse) + specular *  pow(clamp(dot(half,normalizedNormal),0.0,1.0),alpha) + (ambient * 0.2);
