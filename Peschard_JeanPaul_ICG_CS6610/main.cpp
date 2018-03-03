@@ -6,8 +6,8 @@
 #include "lodepng.h"
 
 //Screen values
-const int screenWidth = 1024;
-const int screenHeight = 512;
+const float screenWidth = 1024;
+const float screenHeight = 512;
 
 //Separate color values
 float red = 0.25f;
@@ -494,9 +494,11 @@ void Display()
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glDepthMask(GL_FALSE);
-	cy::Matrix4f cameraReflectedRotationMatrix = cyMatrix4f::MatrixRotationY(rotationY) * cyMatrix4f::MatrixRotationX(-rotationX);
-	viewMatrix = cameraPositionMatrix * cameraReflectedRotationMatrix;
-	mvp = projectionMatrix * cameraReflectedRotationMatrix;
+	cameraRotationMatrix = cyMatrix4f::MatrixRotationY(rotationY) * cyMatrix4f::MatrixRotationX(rotationX);
+	viewMatrix = cameraPositionMatrix * cameraRotationMatrix;
+	cy::Matrix4f reflectedScale;
+	reflectedScale.SetScale(cy::Point3f(1.0f, -1.0f, 1.0f));
+	mvp = projectionMatrix * cameraRotationMatrix * reflectedScale;
 
 	cubeShaderProgram.Bind();
 	cubeShaderProgram.SetUniformMatrix4("mvp", mvp.data);
@@ -509,8 +511,9 @@ void Display()
 	glDepthMask(GL_TRUE);
 
 	//Draw teapot
-	modelMatrix = cy::Matrix4<float>::MatrixTrans(-(mesh.GetBoundMin() + mesh.GetBoundMax())* 0.5f);
-	viewMatrix = cameraPositionMatrix * cameraReflectedRotationMatrix;
+	cy::Point3f vector = (mesh.GetBoundMin() + mesh.GetBoundMax()) * 0.5f;
+	modelMatrix = cy::Matrix4<float>::MatrixTrans(cy::Point3f(-vector.x, vector.y,0.0f));
+	viewMatrix = cameraPositionMatrix * cameraRotationMatrix * reflectedScale;
 	lightMatrix = viewMatrix * lightRotationMatrix * lightPositionMatrix;
 	viewerPosition = viewMatrix * cameraPositionMatrix.GetTrans();
 
@@ -591,10 +594,8 @@ void Display()
 	planeShaderProgram.Bind();
 	planeShaderProgram.SetUniformMatrix4("mv", mv.data);
 	planeShaderProgram.SetUniformMatrix4("mvp", mvp.data);
-	viewMatrix = cameraPositionMatrix * cameraReflectedRotationMatrix;
-	mvp = projectionMatrix * viewMatrix * modelMatrix;
-	planeShaderProgram.SetUniformMatrix4("reflectedMvp", mvp.data);
-	planeShaderProgram.SetUniformMatrix4("viewMatrix", viewMatrix.data);
+	planeShaderProgram.SetUniform("screenWidth", screenWidth);
+	planeShaderProgram.SetUniform("screenHeight", screenHeight);
 
 	glActiveTexture(GL_TEXTURE0);
 	renderTexture.BindTexture();
@@ -810,7 +811,7 @@ int main(int argc, char* argv [])
 	//Initialize GLUT
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_RGBA | GLUT_DEPTH | GLUT_DOUBLE);
-	glutInitWindowSize(screenWidth, screenHeight);
+	glutInitWindowSize((int)screenWidth,(int)screenHeight);
 	glutInitWindowPosition(0,0);
 	glutInitContextVersion(3, 3);
 	glutCreateWindow("Reflections");
