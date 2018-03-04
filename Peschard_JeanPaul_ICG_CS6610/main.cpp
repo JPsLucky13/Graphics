@@ -21,6 +21,7 @@ GLuint VBO;
 
 //Vertex Buffer and UV buffer for the plane
 GLuint VBPlane;
+GLuint NBPlane;
 GLuint UVBPlane;
 GLuint VAOPlane;
 
@@ -66,6 +67,9 @@ GLuint VAO;
 cy::TriMesh mesh;
 cy::GLSLProgram shaderProgram;
 
+//Shadow shader
+cy::GLSLProgram shadowShaderProgram;
+
 //The texture unit type
 GLenum textureUnitType = GL_TEXTURE_2D;
 
@@ -74,6 +78,9 @@ GLenum textureUnitCubeMap = GL_TEXTURE_CUBE_MAP;
 
 //The cube map texture
 cy::GLTextureCubeMap cubeMapTexture;
+
+//The depth map
+cy::GLRenderDepth2D depthMap;
 
 //Keyboard states
 bool leftCtrl = false;
@@ -100,7 +107,8 @@ cy::Matrix4<float> mv;
 
 //Light
 cy::Matrix4<float> lightMatrix;
-cy::Matrix4<float> lightPositionMatrix = cy::Matrix4<float>::MatrixTrans(cy::Point3f(0.0f, 0.0f, 200.0f));
+cy::Matrix4<float> lightCameraMatrix;
+cy::Matrix4<float> lightPositionMatrix = cy::Matrix4<float>::MatrixTrans(cy::Point3f(0.0f, 0.0f, 100.0f));
 cy::Matrix4<float> lightRotationMatrix = cy::Matrix4<float>::MatrixRotationY(0.0f) * cy::Matrix4<float>::MatrixRotationX(0.0f);
 float currentLightXRotation = 0.0f;
 float currentLightYRotation = 0.0f;
@@ -270,6 +278,25 @@ void CreatePlaneMesh(float dimensions)
 	glBufferData(GL_ARRAY_BUFFER, 6 * sizeof(cy::Point3f), planeVertices, GL_STATIC_DRAW);
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+	//Generate and bind the plane normal buffer 
+	glGenBuffers(1, &NBPlane);
+	glBindBuffer(GL_ARRAY_BUFFER, NBPlane);
+
+	//Create the array of normals from the triangle vertices
+	cy::Point3f * planeNormals = new cy::Point3f[6];
+
+	planeNormals[0] = cy::Point3f(0.0f, 1.0f, 0.0f);
+	planeNormals[1] = cy::Point3f(0.0f, 1.0f, 0.0f);
+	planeNormals[2] = cy::Point3f(0.0f, 1.0f, 0.0f);
+
+	planeNormals[3] = cy::Point3f(0.0f, 1.0f, 0.0f);
+	planeNormals[4] = cy::Point3f(0.0f, 1.0f, 0.0f);
+	planeNormals[5] = cy::Point3f(0.0f, 1.0f, 0.0f);
+
+	glBufferData(GL_ARRAY_BUFFER, 6 * sizeof(cy::Point3f), planeNormals, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
 }
 
 void CreateSphereMesh()
@@ -442,6 +469,14 @@ void CreateCubeMapTextures()
 
 }
 
+void CreateDepthMap()
+{
+	depthMap.Initialize(true,screenWidth, screenHeight, GL_DEPTH_COMPONENT16);
+	depthMap.SetTextureFilteringMode(GL_LINEAR, GL_LINEAR);
+	depthMap.SetTextureWrappingMode(GL_MIRRORED_REPEAT, GL_MIRRORED_REPEAT);
+}
+
+
 
 void CreateShaders()
 {
@@ -451,8 +486,18 @@ void CreateShaders()
 	cy::GLSLShader fragmentShader;
 	fragmentShader.CompileFile("Shaders/Fragment/mesh.cgfx", GL_FRAGMENT_SHADER);
 	shaderProgram.Build(&vertexShader, &fragmentShader);
-
 }
+
+void CreateShadowShader()
+{
+	//The Shader Program
+	cy::GLSLShader vertexShader;
+	vertexShader.CompileFile("Shaders/Vertex/shadowMap.cgfx", GL_VERTEX_SHADER);
+	cy::GLSLShader fragmentShader;
+	fragmentShader.CompileFile("Shaders/Fragment/shadowMap.cgfx", GL_FRAGMENT_SHADER);
+	shadowShaderProgram.Build(&vertexShader, &fragmentShader);
+}
+
 
 void CreatePlaneShaders()
 {
@@ -486,81 +531,45 @@ void CreateSphereShaders()
 
 void Display()
 {
-	//glClearColor(GLclampf(red), GLclampf(green), GLclampf(blue), GLclampf(alpha));
-
 	//Create the render target
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-	renderTexture.Bind();
+	//Bind the depth map because we already rendered the scene
+	depthMap.Bind();
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	glDepthMask(GL_FALSE);
-	cameraRotationMatrix = cyMatrix4f::MatrixRotationY(rotationY) * cyMatrix4f::MatrixRotationX(rotationX);
-	viewMatrix = cameraPositionMatrix * cameraRotationMatrix;
-	cy::Matrix4f reflectedScale;
-	reflectedScale.SetScale(cy::Point3f(1.0f, -1.0f, 1.0f));
-	mvp = projectionMatrix * cameraRotationMatrix * reflectedScale;
+	//Create the light matrix
+	cy::Matrix4f lightProjectionMatrix;
+	float right = 50.0f;
+	float left = -50.0f;
+	float top = 50.0f;
+	float bottom = -50.0f;
+	float nearPlane = 1.0f;
+	float farPlane = 1000.0f;
+	lightProjectionMatrix.SetColumn(0,2.0f / (right- left),0.0f,0.0f,0.0f);
+	lightProjectionMatrix.SetColumn(1, 0.0f, 2.0f / (top- bottom), 0.0f, 0.0f);
+	lightProjectionMatrix.SetColumn(2, 0.0f, 0.0f, -2 / (farPlane - nearPlane), 0.0f);
+	lightProjectionMatrix.SetColumn(3, -((right + left)/(right- left)), -((top + bottom) / (top - bottom)), -((farPlane + nearPlane) / (farPlane - nearPlane)), 1.0f);
+	cy::Matrix4f lightSpaceMatrix = lightProjectionMatrix * cy::Matrix4f::MatrixView((lightRotationMatrix * lightPositionMatrix).GetTrans(), cy::Point3f(0.0f, 0.0f, 0.0f), cy::Point3f(0.0f, 1.0f, 0.0f));
 
-	cubeShaderProgram.Bind();
-	cubeShaderProgram.SetUniformMatrix4("mvp", mvp.data);
+	//Draw teapot from light's view
+	modelMatrix = cy::Matrix4<float>::MatrixTrans(-(mesh.GetBoundMin() + mesh.GetBoundMax())* 0.5f);
+	mvp = lightSpaceMatrix * modelMatrix;
 
-	cubeMapTexture.Bind();
-
-	glBindVertexArray(VAOCube);
-	glDrawArrays(GL_TRIANGLES, 0, cubeMesh.NF() * 3);
-
-	glDepthMask(GL_TRUE);
-
-	//Draw teapot
-	cy::Point3f vector = (mesh.GetBoundMin() + mesh.GetBoundMax()) * 0.5f;
-	modelMatrix = cy::Matrix4<float>::MatrixTrans(cy::Point3f(-vector.x, vector.y,0.0f));
-	viewMatrix = cameraPositionMatrix * cameraRotationMatrix * reflectedScale;
-	lightMatrix = viewMatrix * lightRotationMatrix * lightPositionMatrix;
-	viewerPosition = viewMatrix * cameraPositionMatrix.GetTrans();
-
-	mv = viewMatrix * modelMatrix;
-	mvp = projectionMatrix * viewMatrix * modelMatrix;
-	inverseTransposeOfView = (viewMatrix * modelMatrix).GetSubMatrix3();
-	inverseTransposeOfView.Invert();
-	inverseTransposeOfView.Transpose();
-	cameraDistance = cameraPositionMatrix.GetTrans().Length();
-
-	shaderProgram.Bind();
-	shaderProgram.SetUniformMatrix4("mv", mv.data);
-	shaderProgram.SetUniformMatrix4("mvp", mvp.data);
-	shaderProgram.SetUniformMatrix3("inverseCM", inverseTransposeOfView.data);
-	shaderProgram.SetUniformMatrix4("modelMatrix", modelMatrix.data);
-	shaderProgram.SetUniformMatrix4("viewMatrix", viewMatrix.data);
-	shaderProgram.SetUniform("lightPosition", lightMatrix.GetTrans());
-	shaderProgram.SetUniform("viewerPosition", viewerPosition);
-
-	cubeMapTexture.Bind();
+	shadowShaderProgram.Bind();
+	shadowShaderProgram.SetUniformMatrix4("mvp", mvp.data);
 
 	//Set the parameters of the renderTexture object
 	glBindVertexArray(VAO);
 	glDrawArrays(GL_TRIANGLES, 0, mesh.NF() * 3);
-	renderTexture.Unbind();
+	depthMap.Unbind();
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	//Draw the cube map
-	glDepthMask(GL_FALSE);
-	viewMatrix = cameraPositionMatrix * cameraRotationMatrix;
-	mvp = projectionMatrix * cameraRotationMatrix;
-
-	cubeShaderProgram.Bind();
-	cubeShaderProgram.SetUniformMatrix4("mvp", mvp.data);
-
-	cubeMapTexture.Bind();
-
-	glBindVertexArray(VAOCube);
-	glDrawArrays(GL_TRIANGLES, 0, cubeMesh.NF() * 3);
-
-	glDepthMask(GL_TRUE);
 
 	//Draw teapot
 	modelMatrix = cy::Matrix4<float>::MatrixTrans(-(mesh.GetBoundMin() + mesh.GetBoundMax())* 0.5f);
 	viewMatrix = cameraPositionMatrix * cameraRotationMatrix;
-	lightMatrix = viewMatrix * lightRotationMatrix * lightPositionMatrix;
+	lightMatrix = lightRotationMatrix * lightPositionMatrix;
+	lightCameraMatrix = viewMatrix * lightRotationMatrix * lightPositionMatrix;
 	viewerPosition = viewMatrix * cameraPositionMatrix.GetTrans();
 
 	mv = viewMatrix * modelMatrix;
@@ -573,13 +582,13 @@ void Display()
 	shaderProgram.Bind();
 	shaderProgram.SetUniformMatrix4("mv", mv.data);
 	shaderProgram.SetUniformMatrix4("mvp", mvp.data);
+	shaderProgram.SetUniformMatrix4("lightSpaceMatrix", lightSpaceMatrix.data);
 	shaderProgram.SetUniformMatrix3("inverseCM", inverseTransposeOfView.data);
 	shaderProgram.SetUniformMatrix4("modelMatrix", modelMatrix.data);
 	shaderProgram.SetUniformMatrix4("viewMatrix", viewMatrix.data);
-	shaderProgram.SetUniform("lightPosition", lightMatrix.GetTrans());
+	shaderProgram.SetUniform("worldLightPosition", lightMatrix.GetTrans());
+	shaderProgram.SetUniform("lightPosition", lightCameraMatrix.GetTrans());
 	shaderProgram.SetUniform("viewerPosition", viewerPosition);
-
-	cubeMapTexture.Bind();
 
 	//Set the parameters of the renderTexture object
 	glBindVertexArray(VAO);
@@ -589,16 +598,24 @@ void Display()
 	modelMatrix = planeRotationMatrix * planePositionMatrix;
 	viewMatrix = cameraPositionMatrix * cameraRotationMatrix;
 	mvp = projectionMatrix * viewMatrix * modelMatrix;
+	viewerPosition = viewMatrix * cameraPositionMatrix.GetTrans();
 
+	inverseTransposeOfView = (viewMatrix * modelMatrix).GetSubMatrix3();
+	inverseTransposeOfView.Invert();
+	inverseTransposeOfView.Transpose();
 	
 	planeShaderProgram.Bind();
-	planeShaderProgram.SetUniformMatrix4("mv", mv.data);
 	planeShaderProgram.SetUniformMatrix4("mvp", mvp.data);
-	planeShaderProgram.SetUniform("screenWidth", screenWidth);
-	planeShaderProgram.SetUniform("screenHeight", screenHeight);
+	planeShaderProgram.SetUniformMatrix4("lightSpaceMatrix", lightSpaceMatrix.data);
+	planeShaderProgram.SetUniformMatrix3("inverseCM", inverseTransposeOfView.data);
+	planeShaderProgram.SetUniformMatrix4("modelMatrix", modelMatrix.data);
+	planeShaderProgram.SetUniformMatrix4("viewMatrix", viewMatrix.data);
+	planeShaderProgram.SetUniform("worldLightPosition", lightMatrix.GetTrans());
+	planeShaderProgram.SetUniform("lightPosition", lightCameraMatrix.GetTrans());
+	planeShaderProgram.SetUniform("viewerPosition", viewerPosition);
 
 	glActiveTexture(GL_TEXTURE0);
-	renderTexture.BindTexture();
+	depthMap.BindTexture();
 
 	glBindVertexArray(VAOPlane);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -842,15 +859,12 @@ int main(int argc, char* argv [])
 
 	CreateShaders();
 
+	CreateDepthMap();
+	CreateShadowShader();
+
 	//Create the plane Mesh
 	CreatePlaneMesh(50.0f);
 	CreatePlaneShaders();
-	
-	//Create the cube Mesh
-	CreateCubeMesh();
-
-	CreateCubeMapTextures();
-	CreateCubeShaders();
 
 	//Create the sphere Mesh
 	CreateSphereMesh();
