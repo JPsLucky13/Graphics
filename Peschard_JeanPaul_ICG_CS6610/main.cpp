@@ -118,7 +118,7 @@ cy::Matrix4<float> mv;
 //Light
 cy::Matrix4<float> lightMatrix;
 cy::Matrix4<float> lightCameraMatrix;
-cy::Matrix4<float> lightPositionMatrix = cy::Matrix4<float>::MatrixTrans(cy::Point3f(0.0f, 0.0f, 100.0f));
+cy::Matrix4<float> lightPositionMatrix = cy::Matrix4<float>::MatrixTrans(cy::Point3f(0.0f, 0.0f, 70.0f));
 cy::Matrix4<float> lightRotationMatrix = cy::Matrix4<float>::MatrixRotationY(0.0f) * cy::Matrix4<float>::MatrixRotationX(0.0f);
 float currentLightXRotation = 0.0f;
 float currentLightYRotation = 0.0f;
@@ -535,8 +535,9 @@ void CreateDepthMap()
 {
 	depthMap.Initialize(true, 4096, 4096, GL_DEPTH_COMPONENT24);
 	depthMap.SetTextureFilteringMode(GL_LINEAR, GL_LINEAR);
-	depthMap.SetTextureWrappingMode(GL_MIRRORED_REPEAT, GL_MIRRORED_REPEAT);
+	depthMap.SetTextureWrappingMode(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 	depthMap.SetTextureMaxAnisotropy();
+	depthMap.BuildTextureMipmaps();
 }
 
 
@@ -622,17 +623,9 @@ void Display()
 
 	//Create the light matrix
 	cy::Matrix4f lightProjectionMatrix;
-	float right = 50.0f;
-	float left = -50.0f;
-	float top = 50.0f;
-	float bottom = -50.0f;
-	float nearPlane = 1.0f;
-	float farPlane = 1000.0f;
-	lightProjectionMatrix.SetColumn(0,2.0f / (right- left),0.0f,0.0f,0.0f);
-	lightProjectionMatrix.SetColumn(1, 0.0f, 2.0f / (top- bottom), 0.0f, 0.0f);
-	lightProjectionMatrix.SetColumn(2, 0.0f, 0.0f, -2 / (farPlane - nearPlane), 0.0f);
-	lightProjectionMatrix.SetColumn(3, -((right + left)/(right- left)), -((top + bottom) / (top - bottom)), -((farPlane + nearPlane) / (farPlane - nearPlane)), 1.0f);
-	cy::Matrix4f lightSpaceMatrix = lightProjectionMatrix * cy::Matrix4f::MatrixView((lightRotationMatrix * lightPositionMatrix).GetTrans(), cy::Point3f(0.0f, 0.0f, 0.0f), cy::Point3f(0.0f, 1.0f, 0.0f));
+	lightProjectionMatrix = cy::Matrix4<float>::MatrixPerspective(1.0472f, screenWidth/screenHeight, 6.5f, 200.0f);
+	cy::Point3f lightDir = (lightRotationMatrix * lightPositionMatrix).GetTrans();
+	cy::Matrix4f lightSpaceMatrix = lightProjectionMatrix * cy::Matrix4f::MatrixView(lightDir, cy::Point3f(0.0f, 0.0f, 0.0f), cy::Point3f(0.0f, 1.0f, 0.0f));
 
 	//Draw teapot from light's view
 	modelMatrix = cy::Matrix4<float>::MatrixTrans(-(mesh.GetBoundMin() + mesh.GetBoundMax())* 0.5f);
