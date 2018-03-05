@@ -36,6 +36,12 @@ GLuint NBSphere;
 GLuint UVBSphere;
 GLuint VAOSphere;
 
+//Vertex buffers for the light
+cy::TriMesh lightMesh;
+GLuint VBLight;
+GLuint NBLight;
+GLuint VAOLight;
+
 //Normal Buffer
 GLuint NBO;
 
@@ -68,7 +74,11 @@ cy::TriMesh mesh;
 cy::GLSLProgram shaderProgram;
 
 //Shadow shader
+cy::GLSLProgram shadowMapShaderProgram;
 cy::GLSLProgram shadowShaderProgram;
+
+//Simple shader
+cy::GLSLProgram simpleShaderProgram;
 
 //The texture unit type
 GLenum textureUnitType = GL_TEXTURE_2D;
@@ -375,6 +385,58 @@ void CreateSphereMesh()
 
 }
 
+void CreateLightMesh()
+{
+	glGenVertexArrays(1, &VAOLight);
+	glBindVertexArray(VAOLight);
+
+	glGenBuffers(1, &VBLight);
+	glBindBuffer(GL_ARRAY_BUFFER, VBLight);
+
+	bool result = lightMesh.LoadFromFileObj("Models/light.obj");
+	lightMesh.ComputeBoundingBox();
+
+	//Create the array of vertices from the triangle vertices
+	cy::Point3f * triangleVertices = new cy::Point3f[lightMesh.NF() * 3];
+
+	unsigned int vertexIndex = 0;
+
+	for (size_t i = 0; i < lightMesh.NF(); i++)
+	{
+		triangleVertices[vertexIndex] = lightMesh.V(lightMesh.F(i).v[0]);
+		triangleVertices[vertexIndex + 1] = lightMesh.V(lightMesh.F(i).v[1]);
+		triangleVertices[vertexIndex + 2] = lightMesh.V(lightMesh.F(i).v[2]);
+		vertexIndex += 3;
+	}
+
+	glBufferData(GL_ARRAY_BUFFER, lightMesh.NF() * 3 * sizeof(cy::Point3f), triangleVertices, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+	glGenBuffers(1, &NBLight);
+	glBindBuffer(GL_ARRAY_BUFFER, NBLight);
+
+	lightMesh.ComputeNormals();
+
+
+	//Create the array of vertex normals from the triangle vertex normals
+	cy::Point3f * triangleVertexNormals = new cy::Point3f[lightMesh.NF() * 3];
+
+	unsigned int vertexNormalIndex = 0;
+
+	for (size_t i = 0; i < lightMesh.NF(); i++)
+	{
+		triangleVertexNormals[vertexNormalIndex] = lightMesh.VN(lightMesh.FN(i).v[0]);
+		triangleVertexNormals[vertexNormalIndex + 1] = lightMesh.VN(lightMesh.FN(i).v[1]);
+		triangleVertexNormals[vertexNormalIndex + 2] = lightMesh.VN(lightMesh.FN(i).v[2]);
+		vertexNormalIndex += 3;
+	}
+
+	glBufferData(GL_ARRAY_BUFFER, lightMesh.NF() * 3 * sizeof(cy::Point3f), triangleVertexNormals, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+}
+
 void CreateTexture(std::string fileName)
 {
 	std::vector<unsigned char> image; //the raw pixels
@@ -471,9 +533,10 @@ void CreateCubeMapTextures()
 
 void CreateDepthMap()
 {
-	depthMap.Initialize(true,screenWidth, screenHeight, GL_DEPTH_COMPONENT16);
+	depthMap.Initialize(true, 4096, 4096, GL_DEPTH_COMPONENT24);
 	depthMap.SetTextureFilteringMode(GL_LINEAR, GL_LINEAR);
 	depthMap.SetTextureWrappingMode(GL_MIRRORED_REPEAT, GL_MIRRORED_REPEAT);
+	depthMap.SetTextureMaxAnisotropy();
 }
 
 
@@ -488,13 +551,33 @@ void CreateShaders()
 	shaderProgram.Build(&vertexShader, &fragmentShader);
 }
 
-void CreateShadowShader()
+void CreateSimpleShader()
+{
+	//The Shader Program
+	cy::GLSLShader vertexShader;
+	vertexShader.CompileFile("Shaders/Vertex/simpleShader.cgfx", GL_VERTEX_SHADER);
+	cy::GLSLShader fragmentShader;
+	fragmentShader.CompileFile("Shaders/Fragment/simpleShader.cgfx", GL_FRAGMENT_SHADER);
+	simpleShaderProgram.Build(&vertexShader, &fragmentShader);
+}
+
+void CreateShadowMapShader()
 {
 	//The Shader Program
 	cy::GLSLShader vertexShader;
 	vertexShader.CompileFile("Shaders/Vertex/shadowMap.cgfx", GL_VERTEX_SHADER);
 	cy::GLSLShader fragmentShader;
 	fragmentShader.CompileFile("Shaders/Fragment/shadowMap.cgfx", GL_FRAGMENT_SHADER);
+	shadowMapShaderProgram.Build(&vertexShader, &fragmentShader);
+}
+
+void CreateShadowShader()
+{
+	//The Shader Program
+	cy::GLSLShader vertexShader;
+	vertexShader.CompileFile("Shaders/Vertex/shadowShader.cgfx", GL_VERTEX_SHADER);
+	cy::GLSLShader fragmentShader;
+	fragmentShader.CompileFile("Shaders/Fragment/shadowShader.cgfx", GL_FRAGMENT_SHADER);
 	shadowShaderProgram.Build(&vertexShader, &fragmentShader);
 }
 
@@ -555,8 +638,8 @@ void Display()
 	modelMatrix = cy::Matrix4<float>::MatrixTrans(-(mesh.GetBoundMin() + mesh.GetBoundMax())* 0.5f);
 	mvp = lightSpaceMatrix * modelMatrix;
 
-	shadowShaderProgram.Bind();
-	shadowShaderProgram.SetUniformMatrix4("mvp", mvp.data);
+	shadowMapShaderProgram.Bind();
+	shadowMapShaderProgram.SetUniformMatrix4("mvp", mvp.data);
 
 	//Set the parameters of the renderTexture object
 	glBindVertexArray(VAO);
@@ -564,6 +647,18 @@ void Display()
 	depthMap.Unbind();
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	//Draw the light
+	modelMatrix = lightRotationMatrix * lightPositionMatrix;
+	viewMatrix = cameraPositionMatrix * cameraRotationMatrix;
+	mvp = projectionMatrix * viewMatrix * modelMatrix;
+
+	simpleShaderProgram.Bind();
+	simpleShaderProgram.SetUniformMatrix4("mvp", mvp.data);
+
+	//Set the parameters of the renderTexture object
+	glBindVertexArray(VAOLight);
+	glDrawArrays(GL_TRIANGLES, 0, lightMesh.NF() * 3);
 
 	//Draw teapot
 	modelMatrix = cy::Matrix4<float>::MatrixTrans(-(mesh.GetBoundMin() + mesh.GetBoundMax())* 0.5f);
@@ -579,16 +674,17 @@ void Display()
 	inverseTransposeOfView.Transpose();
 	cameraDistance = cameraPositionMatrix.GetTrans().Length();
 
-	shaderProgram.Bind();
-	shaderProgram.SetUniformMatrix4("mv", mv.data);
-	shaderProgram.SetUniformMatrix4("mvp", mvp.data);
-	shaderProgram.SetUniformMatrix4("lightSpaceMatrix", lightSpaceMatrix.data);
-	shaderProgram.SetUniformMatrix3("inverseCM", inverseTransposeOfView.data);
-	shaderProgram.SetUniformMatrix4("modelMatrix", modelMatrix.data);
-	shaderProgram.SetUniformMatrix4("viewMatrix", viewMatrix.data);
-	shaderProgram.SetUniform("worldLightPosition", lightMatrix.GetTrans());
-	shaderProgram.SetUniform("lightPosition", lightCameraMatrix.GetTrans());
-	shaderProgram.SetUniform("viewerPosition", viewerPosition);
+	shadowShaderProgram.Bind();
+	shadowShaderProgram.SetUniform("diffuse", cy::Point3f(0.5,0.2,0.5));
+	shadowShaderProgram.SetUniformMatrix4("mv", mv.data);
+	shadowShaderProgram.SetUniformMatrix4("mvp", mvp.data);
+	shadowShaderProgram.SetUniformMatrix4("lightSpaceMatrix", lightSpaceMatrix.data);
+	shadowShaderProgram.SetUniformMatrix3("inverseCM", inverseTransposeOfView.data);
+	shadowShaderProgram.SetUniformMatrix4("modelMatrix", modelMatrix.data);
+	shadowShaderProgram.SetUniformMatrix4("viewMatrix", viewMatrix.data);
+	shadowShaderProgram.SetUniform("worldLightPosition", lightMatrix.GetTrans());
+	shadowShaderProgram.SetUniform("lightPosition", lightCameraMatrix.GetTrans());
+	shadowShaderProgram.SetUniform("viewerPosition", viewerPosition);
 
 	//Set the parameters of the renderTexture object
 	glBindVertexArray(VAO);
@@ -604,15 +700,16 @@ void Display()
 	inverseTransposeOfView.Invert();
 	inverseTransposeOfView.Transpose();
 	
-	planeShaderProgram.Bind();
-	planeShaderProgram.SetUniformMatrix4("mvp", mvp.data);
-	planeShaderProgram.SetUniformMatrix4("lightSpaceMatrix", lightSpaceMatrix.data);
-	planeShaderProgram.SetUniformMatrix3("inverseCM", inverseTransposeOfView.data);
-	planeShaderProgram.SetUniformMatrix4("modelMatrix", modelMatrix.data);
-	planeShaderProgram.SetUniformMatrix4("viewMatrix", viewMatrix.data);
-	planeShaderProgram.SetUniform("worldLightPosition", lightMatrix.GetTrans());
-	planeShaderProgram.SetUniform("lightPosition", lightCameraMatrix.GetTrans());
-	planeShaderProgram.SetUniform("viewerPosition", viewerPosition);
+	shadowShaderProgram.Bind();
+	shadowShaderProgram.SetUniform("diffuse", cy::Point3f(0.5, 0.5, 0.5));
+	shadowShaderProgram.SetUniformMatrix4("mvp", mvp.data);
+	shadowShaderProgram.SetUniformMatrix4("lightSpaceMatrix", lightSpaceMatrix.data);
+	shadowShaderProgram.SetUniformMatrix3("inverseCM", inverseTransposeOfView.data);
+	shadowShaderProgram.SetUniformMatrix4("modelMatrix", modelMatrix.data);
+	shadowShaderProgram.SetUniformMatrix4("viewMatrix", viewMatrix.data);
+	shadowShaderProgram.SetUniform("worldLightPosition", lightMatrix.GetTrans());
+	shadowShaderProgram.SetUniform("lightPosition", lightCameraMatrix.GetTrans());
+	shadowShaderProgram.SetUniform("viewerPosition", viewerPosition);
 
 	glActiveTexture(GL_TEXTURE0);
 	depthMap.BindTexture();
@@ -860,6 +957,7 @@ int main(int argc, char* argv [])
 	CreateShaders();
 
 	CreateDepthMap();
+	CreateShadowMapShader();
 	CreateShadowShader();
 
 	//Create the plane Mesh
@@ -869,6 +967,10 @@ int main(int argc, char* argv [])
 	//Create the sphere Mesh
 	CreateSphereMesh();
 	CreateSphereShaders();
+
+	//Create the light Mesh
+	CreateLightMesh();
+	CreateSimpleShader();
 
 	glutMainLoop();
 	return 0;

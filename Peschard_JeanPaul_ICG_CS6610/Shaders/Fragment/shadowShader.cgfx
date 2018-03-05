@@ -1,0 +1,65 @@
+#version 330 core
+
+out vec4 FragColor;
+
+uniform vec3 lightPosition;
+uniform vec3 worldLightPosition;
+uniform vec3 viewerPosition;
+
+uniform sampler2DShadow samplerPlaneShadow;
+uniform mat4 viewMatrix;
+uniform vec3 diffuse;
+
+in vec4 lightSpacePosition;
+in vec3 o_VertexPos;
+in vec3 o_FragPos;
+in vec3 o_Normal;
+in vec3 o_NormalCameraSpace;
+
+vec3 normalizedNormal;
+vec3 lightVector;
+vec3 worldLightDir;
+
+float alpha = 50;
+
+float ShadowCalculation(vec4 fragPosLightSpace)
+{
+    // perform perspective divide
+    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+	
+    // transform to [0,1] range
+    projCoords = projCoords * 0.5 + 0.5;
+
+    // get closest depth value from light's perspective (using [0,1] range fragPosLight as coords)
+    float bias = max(0.05 * (1.0 - dot(normalizedNormal, lightVector)), 0.09);
+	float closestDepth = texture(samplerPlaneShadow,projCoords); 
+    // get depth of current fragment from light's perspective
+    float currentDepth = projCoords.z;
+    // check whether current frag pos is in shadow
+    float shadow = currentDepth - bias > closestDepth  ? 1.0 : 0.0; 
+
+	if(projCoords.z > 1.0)
+        shadow = 0.0;
+
+    return shadow;
+}
+
+void main()
+{
+	//Blinn shading
+	vec3 ambient = diffuse;
+	vec3 specular = vec3(1.0,1.0,1.0);
+
+	normalizedNormal = normalize(o_NormalCameraSpace);
+	lightVector = normalize(lightPosition - o_VertexPos);
+	worldLightDir = normalize( worldLightPosition - o_FragPos);
+	vec3 viewerVector = normalize (viewerPosition - o_VertexPos);
+
+	vec3 half = normalize(lightVector + viewerVector);
+
+	// calculate shadow
+    float shadow = ShadowCalculation(lightSpacePosition);   
+	vec3 o_Light = ((clamp(dot(lightVector,normalizedNormal),0.0,1.0) * diffuse) + specular *  pow(clamp(dot(half,normalizedNormal),0.0,1.0),alpha)) * (1.0 - shadow) + (ambient * 0.2);
+
+	FragColor = vec4(o_Light,1.0);
+}
