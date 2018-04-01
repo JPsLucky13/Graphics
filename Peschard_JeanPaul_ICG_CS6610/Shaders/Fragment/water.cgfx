@@ -3,17 +3,15 @@
 out vec4 FragColor;
 
 uniform vec3 lightPosition;
-uniform vec3 worldLightPosition;
 uniform vec3 viewerPosition;
-
-uniform sampler2D sampler;
-uniform mat4 viewMatrix;
+uniform vec3 worldLightPosition;
+uniform sampler2DShadow samplerPlaneShadow; 
 
 in vec4 lightSpacePosition;
-in vec3 o_VertexPos;
-in vec3 o_FragPos;
 in vec3 o_Normal;
 in vec3 o_NormalCameraSpace;
+in vec3 o_VertexPos;
+in vec3 o_FragPos;
 
 vec3 normalizedNormal;
 vec3 lightVector;
@@ -25,13 +23,13 @@ float alpha = 50;
 void main()
 {
 	//Blinn shading
-	vec3 diffuse = vec3(0.5,0.2,0.5);
+	vec3 diffuse = vec3(0.5,0.5,0.5);
 	vec3 ambient = diffuse;
 	vec3 specular = vec3(1.0,1.0,1.0);
 
 	normalizedNormal = normalize(o_NormalCameraSpace);
 	lightVector = normalize(lightPosition - o_VertexPos);
-	worldLightDir = normalize( worldLightPosition - o_FragPos);
+	worldLightDir = normalize(worldLightPosition - o_FragPos);
 	vec3 viewerVector = normalize (viewerPosition - o_VertexPos);
 
 	vec3 half = normalize(lightVector + viewerVector);

@@ -56,8 +56,10 @@ GLuint TO2;
 cy::TriMesh cubeMesh;
 
 //Texture Object for the plane
-GLuint TOPlane;
 cy::GLSLProgram planeShaderProgram;
+
+//Shader Program for the water plane
+cy::GLSLProgram waterShaderProgram;
 
 //Shader for the cube
 cy::GLSLProgram cubeShaderProgram;
@@ -67,6 +69,11 @@ cy::GLSLProgram sphereShaderProgram;
 
 //The Render Texture Object to draw the viewport on a texture
 cy::GLRenderTexture2D renderTexture;
+
+//The Render Texture Object for reflection
+cy::GLRenderTexture2D reflectionTexture;
+//The Render Texture Object for refraction
+cy::GLRenderTexture2D refractionTexture;
 
 //Vertex Array Buffer Object
 GLuint VAO;
@@ -118,6 +125,7 @@ cy::Matrix4<float> mv;
 //Light
 cy::Matrix4<float> lightMatrix;
 cy::Matrix4<float> lightCameraMatrix;
+cy::Matrix4f lightSpaceMatrix;
 cy::Matrix4<float> lightPositionMatrix = cy::Matrix4<float>::MatrixTrans(cy::Point3f(0.0f, 0.0f, 70.0f));
 cy::Matrix4<float> lightRotationMatrix = cy::Matrix4<float>::MatrixRotationY(0.0f) * cy::Matrix4<float>::MatrixRotationX(0.0f);
 float currentLightXRotation = 0.0f;
@@ -540,8 +548,6 @@ void CreateDepthMap()
 	depthMap.BuildTextureMipmaps();
 }
 
-
-
 void CreateShaders()
 {
 	//The Shader Program
@@ -593,6 +599,16 @@ void CreatePlaneShaders()
 	planeShaderProgram.Build(&vertexShader, &fragmentShader);
 }
 
+void CreateWaterPlaneShader()
+{
+	//The Shader Program
+	cy::GLSLShader vertexShader;
+	vertexShader.CompileFile("Shaders/Vertex/water.cgfx", GL_VERTEX_SHADER);
+	cy::GLSLShader fragmentShader;
+	fragmentShader.CompileFile("Shaders/Fragment/water.cgfx", GL_FRAGMENT_SHADER);
+	waterShaderProgram.Build(&vertexShader, &fragmentShader);
+}
+
 void CreateCubeShaders()
 {
 	//The Shader Program
@@ -613,33 +629,13 @@ void CreateSphereShaders()
 	sphereShaderProgram.Build(&vertexShader, &fragmentShader);
 }
 
-void Display()
+void RenderScene(cy::Point4f clipPlane)
 {
-	//Create the render target
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-	//Bind the depth map because we already rendered the scene
-	depthMap.Bind();
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	//Create the light matrix
+	////Create the light matrix
 	cy::Matrix4f lightProjectionMatrix;
-	lightProjectionMatrix = cy::Matrix4<float>::MatrixPerspective(1.0472f, screenWidth/screenHeight, 6.5f, 200.0f);
+	lightProjectionMatrix = cy::Matrix4<float>::MatrixPerspective(1.0472f, screenWidth / screenHeight, 6.5f, 200.0f);
 	cy::Point3f lightDir = (lightRotationMatrix * lightPositionMatrix).GetTrans();
-	cy::Matrix4f lightSpaceMatrix = lightProjectionMatrix * cy::Matrix4f::MatrixView(lightDir, cy::Point3f(0.0f, 0.0f, 0.0f), cy::Point3f(0.0f, 1.0f, 0.0f));
-
-	//Draw teapot from light's view
-	modelMatrix = cy::Matrix4<float>::MatrixTrans(-(mesh.GetBoundMin() + mesh.GetBoundMax())* 0.5f);
-	mvp = lightSpaceMatrix * modelMatrix;
-
-	shadowMapShaderProgram.Bind();
-	shadowMapShaderProgram.SetUniformMatrix4("mvp", mvp.data);
-
-	//Set the parameters of the renderTexture object
-	glBindVertexArray(VAO);
-	glDrawArrays(GL_TRIANGLES, 0, mesh.NF() * 3);
-	depthMap.Unbind();
-
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	lightSpaceMatrix = lightProjectionMatrix * cy::Matrix4f::MatrixView(lightDir, cy::Point3f(0.0f, 0.0f, 0.0f), cy::Point3f(0.0f, 1.0f, 0.0f));
 
 	//Draw the light
 	modelMatrix = lightRotationMatrix * lightPositionMatrix;
@@ -667,21 +663,51 @@ void Display()
 	inverseTransposeOfView.Transpose();
 	cameraDistance = cameraPositionMatrix.GetTrans().Length();
 
-	shadowShaderProgram.Bind();
-	shadowShaderProgram.SetUniform("diffuse", cy::Point3f(0.5,0.2,0.5));
-	shadowShaderProgram.SetUniformMatrix4("mv", mv.data);
-	shadowShaderProgram.SetUniformMatrix4("mvp", mvp.data);
-	shadowShaderProgram.SetUniformMatrix4("lightSpaceMatrix", lightSpaceMatrix.data);
-	shadowShaderProgram.SetUniformMatrix3("inverseCM", inverseTransposeOfView.data);
-	shadowShaderProgram.SetUniformMatrix4("modelMatrix", modelMatrix.data);
-	shadowShaderProgram.SetUniformMatrix4("viewMatrix", viewMatrix.data);
-	shadowShaderProgram.SetUniform("worldLightPosition", lightMatrix.GetTrans());
-	shadowShaderProgram.SetUniform("lightPosition", lightCameraMatrix.GetTrans());
-	shadowShaderProgram.SetUniform("viewerPosition", viewerPosition);
+	shaderProgram.Bind();
+	shaderProgram.SetUniform("diffuse", cy::Point3f(0.5, 0.2, 0.5));
+	shaderProgram.SetUniformMatrix4("mv", mv.data);
+	shaderProgram.SetUniformMatrix4("mvp", mvp.data);
+	shaderProgram.SetUniformMatrix4("lightSpaceMatrix", lightSpaceMatrix.data);
+	shaderProgram.SetUniformMatrix3("inverseCM", inverseTransposeOfView.data);
+	shaderProgram.SetUniformMatrix4("modelMatrix", modelMatrix.data);
+	shaderProgram.SetUniformMatrix4("viewMatrix", viewMatrix.data);
+	shaderProgram.SetUniform("worldLightPosition", lightMatrix.GetTrans());
+	shaderProgram.SetUniform("lightPosition", lightCameraMatrix.GetTrans());
+	shaderProgram.SetUniform("viewerPosition", viewerPosition);
 
-	//Set the parameters of the renderTexture object
+	//The clipping plane
+	shaderProgram.SetUniform("plane", clipPlane);
+
+	////Set the parameters of the renderTexture object
 	glBindVertexArray(VAO);
 	glDrawArrays(GL_TRIANGLES, 0, mesh.NF() * 3);
+
+}
+
+void Display()
+{
+	//Create the render target
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	//Bind the reflectionTexture;
+	reflectionTexture.Bind();
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	RenderScene(cy::Point4f(0.0, 1.0, 0.0, -5.0));
+	reflectionTexture.Unbind();
+
+	//Bind the refractionTexture;
+	refractionTexture.Bind();
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	RenderScene(cy::Point4f(0.0, -1.0, 0.0, 5.0));
+	refractionTexture.Unbind();
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	//Disable the clip planes
+	glDisable(GL_CLIP_DISTANCE0);
+
+	RenderScene(cy::Point4f(0.0, 0.0, 0.0, 0.0));
 
 	//Draw Plane
 	modelMatrix = planeRotationMatrix * planePositionMatrix;
@@ -693,22 +719,24 @@ void Display()
 	inverseTransposeOfView.Invert();
 	inverseTransposeOfView.Transpose();
 	
-	shadowShaderProgram.Bind();
-	shadowShaderProgram.SetUniform("diffuse", cy::Point3f(0.5, 0.5, 0.5));
-	shadowShaderProgram.SetUniformMatrix4("mvp", mvp.data);
-	shadowShaderProgram.SetUniformMatrix4("lightSpaceMatrix", lightSpaceMatrix.data);
-	shadowShaderProgram.SetUniformMatrix3("inverseCM", inverseTransposeOfView.data);
-	shadowShaderProgram.SetUniformMatrix4("modelMatrix", modelMatrix.data);
-	shadowShaderProgram.SetUniformMatrix4("viewMatrix", viewMatrix.data);
-	shadowShaderProgram.SetUniform("worldLightPosition", lightMatrix.GetTrans());
-	shadowShaderProgram.SetUniform("lightPosition", lightCameraMatrix.GetTrans());
-	shadowShaderProgram.SetUniform("viewerPosition", viewerPosition);
+	waterShaderProgram.Bind();
+	waterShaderProgram.SetUniform("diffuse", cy::Point3f(0.5, 0.5, 0.5));
+	waterShaderProgram.SetUniformMatrix4("mvp", mvp.data);
+	waterShaderProgram.SetUniformMatrix4("lightSpaceMatrix", lightSpaceMatrix.data);
+	waterShaderProgram.SetUniformMatrix3("inverseCM", inverseTransposeOfView.data);
+	waterShaderProgram.SetUniformMatrix4("modelMatrix", modelMatrix.data);
+	waterShaderProgram.SetUniformMatrix4("viewMatrix", viewMatrix.data);
+	waterShaderProgram.SetUniform("worldLightPosition", lightMatrix.GetTrans());
+	waterShaderProgram.SetUniform("lightPosition", lightCameraMatrix.GetTrans());
+	waterShaderProgram.SetUniform("viewerPosition", viewerPosition);
 
 	glActiveTexture(GL_TEXTURE0);
-	depthMap.BindTexture();
+	reflectionTexture.BindTexture();
+
 
 	glBindVertexArray(VAOPlane);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
+	
 	glutSwapBuffers();
 }
 
@@ -911,6 +939,21 @@ void Idle()
 	glutPostRedisplay();
 }
 
+void InitializeReflectionRenderTexture()
+{
+	reflectionTexture.Initialize(true, 3, screenWidth, screenHeight);
+	reflectionTexture.SetTextureFilteringMode(GL_LINEAR_MIPMAP_LINEAR, 0);
+	reflectionTexture.SetTextureMaxAnisotropy();
+	reflectionTexture.BuildTextureMipmaps();
+}
+
+void InitializeRefractionRenderTexture()
+{
+	refractionTexture.Initialize(true, 3, screenWidth, screenHeight);
+	refractionTexture.SetTextureFilteringMode(GL_LINEAR_MIPMAP_LINEAR, 0);
+	refractionTexture.SetTextureMaxAnisotropy();
+	refractionTexture.BuildTextureMipmaps();
+}
 
 
 int main(int argc, char* argv [])
@@ -921,7 +964,7 @@ int main(int argc, char* argv [])
 	glutInitWindowSize((int)screenWidth,(int)screenHeight);
 	glutInitWindowPosition(0,0);
 	glutInitContextVersion(3, 3);
-	glutCreateWindow("Reflections");
+	glutCreateWindow("Simple Water");
 	glEnable(GL_DEPTH_TEST);
 	glutKeyboardFunc(Keyboard);
 	glutSpecialFunc(SpecialKeyboard);
@@ -929,6 +972,9 @@ int main(int argc, char* argv [])
 	glutMotionFunc(MouseMovement);
 	glutDisplayFunc(Display);
 	glutIdleFunc(Idle);
+
+	//Enabling the clip distance at index 0
+	glEnable(GL_CLIP_DISTANCE0);
 
 	//Initialize GLEW
 	glewInit();
@@ -942,24 +988,18 @@ int main(int argc, char* argv [])
 
 	CreateMesh(path.c_str());
 
-	renderTexture.Initialize(true, 3, screenWidth, screenHeight);
-	renderTexture.SetTextureFilteringMode(GL_LINEAR_MIPMAP_LINEAR, 0);
-	renderTexture.SetTextureMaxAnisotropy();
-	renderTexture.BuildTextureMipmaps();
+	InitializeReflectionRenderTexture();
+	InitializeRefractionRenderTexture();
 
 	CreateShaders();
 
-	CreateDepthMap();
-	CreateShadowMapShader();
-	CreateShadowShader();
+	//CreateDepthMap();
+	//CreateShadowMapShader();
+	//CreateShadowShader();
 
-	//Create the plane Mesh
-	CreatePlaneMesh(50.0f);
-	CreatePlaneShaders();
-
-	//Create the sphere Mesh
-	CreateSphereMesh();
-	CreateSphereShaders();
+	//Create the plane mesh for the water
+	CreatePlaneMesh(70.0f);
+	CreateWaterPlaneShader();
 
 	//Create the light Mesh
 	CreateLightMesh();
