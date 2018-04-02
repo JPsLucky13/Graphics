@@ -3,26 +3,21 @@
 layout (location = 0) in vec3 Position;
 layout (location = 1) in vec3 Normal;
 
-out vec4 lightSpacePosition;
-out vec3 o_Normal;
-out vec3 o_NormalCameraSpace;
-out vec3 o_VertexPos;
-out vec3 o_FragPos;
+out vec4 clipSpace;
+out vec2 textureCoords;
+out vec3 toCameraVector;
 
-uniform mat4 lightSpaceMatrix;
 uniform mat4 mvp;
-uniform mat3 inverseCM;
+uniform vec3 cameraPosition;
 uniform mat4 modelMatrix;
-uniform mat4 viewMatrix;
+
+const float tiling = 6.0;
 
 void main()
 {
-
-	mat4 modelViewMatrix = viewMatrix * modelMatrix;
-	o_VertexPos = vec3(modelViewMatrix * vec4(Position,1.0));
-	o_FragPos = vec3(modelMatrix * vec4(Position,1.0));
-	lightSpacePosition = lightSpaceMatrix * modelMatrix * vec4(Position,1.0);
-	o_NormalCameraSpace = transpose(inverse(mat3(modelViewMatrix))) * Normal;
-	o_Normal = transpose(inverse(mat3(modelMatrix))) * Normal;
-	gl_Position = mvp * vec4(Position,1.0);
+	vec4 worldPosition = modelMatrix * vec4(Position,1.0); 
+	clipSpace = mvp * vec4(Position,1.0);
+	gl_Position = clipSpace;
+	textureCoords = vec2(Position.x * 0.5 + 0.5, Position.y * 0.5 + 0.5) * tiling;
+	toCameraVector = cameraPosition - worldPosition.xyz;
 }

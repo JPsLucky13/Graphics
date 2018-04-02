@@ -2,39 +2,48 @@
 
 out vec4 FragColor;
 
-uniform vec3 lightPosition;
-uniform vec3 viewerPosition;
-uniform vec3 worldLightPosition;
-uniform sampler2DShadow samplerPlaneShadow; 
+uniform sampler2D reflectionTexture; 
+uniform sampler2D refractionTexture;
+uniform sampler2D dudvMap;
 
-in vec4 lightSpacePosition;
-in vec3 o_Normal;
-in vec3 o_NormalCameraSpace;
-in vec3 o_VertexPos;
-in vec3 o_FragPos;
+in vec4 clipSpace;
+in vec2 textureCoords;
+in vec3 toCameraVector;
 
-vec3 normalizedNormal;
-vec3 lightVector;
-vec3 worldLightDir;
+uniform float moveFactor;
 
-float alpha = 50;
-
+const float waveStrength = 0.02;
 
 void main()
 {
-	//Blinn shading
-	vec3 diffuse = vec3(0.5,0.5,0.5);
-	vec3 ambient = diffuse;
-	vec3 specular = vec3(1.0,1.0,1.0);
+	vec2 ndc = (clipSpace.xy/clipSpace.w) * 0.5 + 0.5;
 
-	normalizedNormal = normalize(o_NormalCameraSpace);
-	lightVector = normalize(lightPosition - o_VertexPos);
-	worldLightDir = normalize(worldLightPosition - o_FragPos);
-	vec3 viewerVector = normalize (viewerPosition - o_VertexPos);
+	//Reflection and refraction coordinates
+	vec2 refractionCoords = vec2(ndc.x,ndc.y);
+	vec2 reflectionCoords = vec2(ndc.x,-ndc.y);
 
-	vec3 half = normalize(lightVector + viewerVector);
-   
-	vec3 o_Light = ((clamp(dot(lightVector,normalizedNormal),0.0,1.0) * diffuse) + specular *  pow(clamp(dot(half,normalizedNormal),0.0,1.0),alpha)) + (ambient * 0.2);
+	//Sample the dudv map
+	vec2 distortion1 = (texture(dudvMap, vec2(textureCoords.x + moveFactor,textureCoords.y)).rg * 2.0 - 1.0) * waveStrength;
+	vec2 distortion2 = (texture(dudvMap, vec2(-textureCoords.x + moveFactor,textureCoords.y + moveFactor)).rg * 2.0 - 1.0) * waveStrength;
+	vec2 totalDistortion = distortion1 + distortion2;
 
-	FragColor = vec4(o_Light,1.0);
+	refractionCoords += totalDistortion;
+	refractionCoords = clamp(refractionCoords,0.001,0.999);
+
+	reflectionCoords += totalDistortion;
+	reflectionCoords.x = clamp(reflectionCoords.x,0.001,0.999);
+	reflectionCoords.y = clamp(reflectionCoords.y,-0.999,-0.001);
+
+	//Reflection and refraction
+	vec4 reflectionColor = texture(reflectionTexture,reflectionCoords);
+	vec4 refractionColor = texture(refractionTexture,refractionCoords);
+
+	vec3 viewVector = normalize(toCameraVector);
+	float refractiveFactor = dot(viewVector, vec3(0.0,1.0,0.0));
+	refractiveFactor = pow(refractiveFactor,5.0);
+
+	FragColor = texture(dudvMap,textureCoords);
+
+	//FragColor = mix(reflectionColor,refractionColor,refractiveFactor);
+	//FragColor = mix(FragColor, vec4(0.0,0.3,0.5,1.0),0.2);
 }
