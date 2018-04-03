@@ -22,8 +22,7 @@ uniform vec4 plane;
 
 void main()
 {
-	
-
+	gl_ClipDistance[0] = dot(modelMatrix * vec4(Position,1.0),plane);
 	mat4 modelViewMatrix = viewMatrix * modelMatrix;
 	o_VertexPos = vec3(modelViewMatrix * vec4(Position,1.0));
 	o_FragPos = vec3(modelMatrix * vec4(Position,1.0));
@@ -32,5 +31,4 @@ void main()
 	lightSpacePosition = lightSpaceMatrix * modelMatrix * vec4(Position,1.0);
 	gl_Position = mvp * vec4(Position, 1.0);
 
-	gl_ClipDistance[0] = dot(vec4(o_FragPos,1.0),plane);
 }

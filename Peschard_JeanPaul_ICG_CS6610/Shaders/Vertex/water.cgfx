@@ -2,6 +2,7 @@
 
 layout (location = 0) in vec3 Position;
 layout (location = 1) in vec3 Normal;
+layout (location = 2) in vec2 UVs;
 
 out vec4 clipSpace;
 out vec2 textureCoords;
@@ -11,13 +12,12 @@ uniform mat4 mvp;
 uniform vec3 cameraPosition;
 uniform mat4 modelMatrix;
 
-const float tiling = 6.0;
 
 void main()
 {
 	vec4 worldPosition = modelMatrix * vec4(Position,1.0); 
 	clipSpace = mvp * vec4(Position,1.0);
 	gl_Position = clipSpace;
-	textureCoords = vec2(Position.x * 0.5 + 0.5, Position.y * 0.5 + 0.5) * tiling;
+	textureCoords = UVs;
 	toCameraVector = cameraPosition - worldPosition.xyz;
 }

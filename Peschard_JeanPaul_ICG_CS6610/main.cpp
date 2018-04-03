@@ -114,7 +114,7 @@ cy::Point3f lastMousePosition;
 cy::Point3f mouseDirection;
 
 //Wave speed
-const float WAVE_SPEED = 0.03f;
+const float WAVE_SPEED = 0.01f;
 float moveFactor = 0.0f;
 
 //Matrices
@@ -328,13 +328,13 @@ void CreatePlaneMesh(float dimensions)
 	//Create the array of normals from the triangle vertices
 	cy::Point2f * planeUVs = new cy::Point2f[6];
 
-	planeUVs[0] = cy::Point2f(0.0f, 0.0f);
-	planeUVs[1] = cy::Point2f(0.0f, 1.0f);
-	planeUVs[2] = cy::Point2f(1.0f, 0.0f);
+	planeUVs[0] = cy::Point2f(0.0f, 1.0f);
+	planeUVs[1] = cy::Point2f(0.0f, 0.0f);
+	planeUVs[2] = cy::Point2f(1.0f, 1.0f);
 
-	planeUVs[3] = cy::Point2f(1.0f, 1.0f);
-	planeUVs[4] = cy::Point2f(1.0f, 0.0f);
-	planeUVs[5] = cy::Point2f(0.0f, 1.0f);
+	planeUVs[3] = cy::Point2f(1.0f, 0.0f);
+	planeUVs[4] = cy::Point2f(1.0f, 1.0f);
+	planeUVs[5] = cy::Point2f(0.0f, 0.0f);
 
 	glBufferData(GL_ARRAY_BUFFER, 6 * sizeof(cy::Point2f), planeUVs, GL_STATIC_DRAW);
 	glEnableVertexAttribArray(2);
@@ -483,6 +483,8 @@ void CreateTexture(std::string fileName)
 	
 	glTexParameterf(textureUnitType, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameterf(textureUnitType, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(textureUnitType, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(textureUnitType, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
 	glGenerateMipmap(textureUnitType);
 }
@@ -686,6 +688,9 @@ void RenderScene(cy::Point4f clipPlane)
 	cameraDistance = cameraPositionMatrix.GetTrans().Length();
 
 	shaderProgram.Bind();
+	//The clipping plane
+	shaderProgram.SetUniform("plane", clipPlane);
+
 	shaderProgram.SetUniform("diffuse", cy::Point3f(0.5, 0.2, 0.5));
 	shaderProgram.SetUniformMatrix4("mv", mv.data);
 	shaderProgram.SetUniformMatrix4("mvp", mvp.data);
@@ -696,9 +701,7 @@ void RenderScene(cy::Point4f clipPlane)
 	shaderProgram.SetUniform("worldLightPosition", lightMatrix.GetTrans());
 	shaderProgram.SetUniform("lightPosition", lightCameraMatrix.GetTrans());
 	shaderProgram.SetUniform("viewerPosition", viewerPosition);
-
-	//The clipping plane
-	shaderProgram.SetUniform("plane", clipPlane);
+	
 
 	////Set the parameters of the renderTexture object
 	glBindVertexArray(VAO);
@@ -720,6 +723,9 @@ void RenderScene(cy::Point4f clipPlane)
 	cameraDistance = cameraPositionMatrix.GetTrans().Length();
 
 	shaderProgram.Bind();
+
+	//The clipping plane
+	shaderProgram.SetUniform("plane", clipPlane);
 	shaderProgram.SetUniform("diffuse", cy::Point3f(0.5, 0.5, 0.2));
 	shaderProgram.SetUniformMatrix4("mv", mv.data);
 	shaderProgram.SetUniformMatrix4("mvp", mvp.data);
@@ -731,57 +737,17 @@ void RenderScene(cy::Point4f clipPlane)
 	shaderProgram.SetUniform("lightPosition", lightCameraMatrix.GetTrans());
 	shaderProgram.SetUniform("viewerPosition", viewerPosition);
 
-	//The clipping plane
-	shaderProgram.SetUniform("plane", clipPlane);
 
 	////Set the parameters of the renderTexture object
 	glBindVertexArray(VAO);
 	glDrawArrays(GL_TRIANGLES, 0, mesh.NF() * 3);
-}
-
-void RenderReflectedScene(cy::Point4f clipPlane)
-{
-	cameraRotationMatrix = cyMatrix4f::MatrixRotationY(rotationY) * cyMatrix4f::MatrixRotationX(rotationX);
-	viewMatrix = cameraPositionMatrix * cameraRotationMatrix;
-	cy::Matrix4f reflectedScale;
-	reflectedScale.SetScale(cy::Point3f(1.0f, -1.0f, 1.0f));
-	mvp = projectionMatrix * cameraRotationMatrix * reflectedScale;
-
-
-	//Draw inverted teapot
-	cy::Point3f vector = (mesh.GetBoundMin() + mesh.GetBoundMax()) * 0.5f;
-	modelMatrix = cy::Matrix4<float>::MatrixTrans(cy::Point3f(-vector.x, vector.y, 0.0f));
-	viewMatrix = cameraPositionMatrix * cameraRotationMatrix * reflectedScale;
-	lightMatrix = viewMatrix * lightRotationMatrix * lightPositionMatrix;
-	viewerPosition = viewMatrix * cameraPositionMatrix.GetTrans();
-
-	mv = viewMatrix * modelMatrix;
-	mvp = projectionMatrix * viewMatrix * modelMatrix;
-	inverseTransposeOfView = (viewMatrix * modelMatrix).GetSubMatrix3();
-	inverseTransposeOfView.Invert();
-	inverseTransposeOfView.Transpose();
-	cameraDistance = cameraPositionMatrix.GetTrans().Length();
-
-	shaderProgram.Bind();
-	shaderProgram.SetUniformMatrix4("mv", mv.data);
-	shaderProgram.SetUniformMatrix4("mvp", mvp.data);
-	shaderProgram.SetUniformMatrix3("inverseCM", inverseTransposeOfView.data);
-	shaderProgram.SetUniformMatrix4("modelMatrix", modelMatrix.data);
-	shaderProgram.SetUniformMatrix4("viewMatrix", viewMatrix.data);
-	shaderProgram.SetUniform("lightPosition", lightMatrix.GetTrans());
-	shaderProgram.SetUniform("viewerPosition", viewerPosition);
-
-	//The clipping plane
-	shaderProgram.SetUniform("plane", clipPlane);
-
-	////Set the parameters of the renderTexture object
-	glBindVertexArray(VAO);
-	glDrawArrays(GL_TRIANGLES, 0, mesh.NF() * 3);
-
 }
 
 void Display()
 {
+	//Enable the clip planes
+	glEnable(GL_CLIP_DISTANCE0);
+
 	//Create the render target
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	//Bind the reflectionTexture;
@@ -794,18 +760,18 @@ void Display()
 	cameraRotationMatrix = cy::Matrix4<float>::MatrixRotationY(rotationY) * cy::Matrix4<float>::MatrixRotationX(-rotationX);
 	viewMatrix = cameraPositionMatrix * cameraRotationMatrix;
 	
-	RenderScene(cy::Point4f(0.0, 1.0, 0.0, -1.0));
-	
-	cameraPositionMatrix.AddTrans(cy::Point3f(0.0f, distance, 0.0f));
-	cameraRotationMatrix = cy::Matrix4<float>::MatrixRotationY(rotationY) * cy::Matrix4<float>::MatrixRotationX(rotationX);
-	viewMatrix = cameraPositionMatrix * cameraRotationMatrix;
+	RenderScene(cy::Point4f(0.0, 1.0, 0.0, 0.0));
 	reflectionTexture.Unbind();
-
+	
 	//Bind the refractionTexture;
 	refractionTexture.Bind();
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	RenderScene(cy::Point4f(0.0, -1.0, 0.0, -1.0));
+	cameraPositionMatrix.AddTrans(cy::Point3f(0.0f, distance, 0.0f));
+	cameraRotationMatrix = cy::Matrix4<float>::MatrixRotationY(rotationY) * cy::Matrix4<float>::MatrixRotationX(rotationX);
+	viewMatrix = cameraPositionMatrix * cameraRotationMatrix;
+
+	RenderScene(cy::Point4f(0.0, -1.0, 0.0, 20.0));
 	refractionTexture.Unbind();
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -832,13 +798,15 @@ void Display()
 	waterShaderProgram.SetUniform("screenWidth", screenWidth);
 	waterShaderProgram.SetUniform("screenHeight", screenHeight);
 
-	glActiveTexture(GL_TEXTURE0);
-	reflectionTexture.BindTexture();
+	waterShaderProgram.SetUniform("reflectionTexture", 0);
+	reflectionTexture.BindTexture(0);
 
-	glActiveTexture(GL_TEXTURE1);
-	refractionTexture.BindTexture();
+	waterShaderProgram.SetUniform("refractionTexture", 1);
+	refractionTexture.BindTexture(1);
 
-	glActiveTexture(GL_TEXTURE2);
+
+	waterShaderProgram.SetUniform("dudvMap", 2);
+	glActiveTexture(GL_TEXTURE0 + 2);
 	glBindTexture(textureUnitType, DUDVO);
 
 	glBindVertexArray(VAOPlane);
@@ -867,9 +835,6 @@ void Keyboard(unsigned char key, int x, int y)
 				toggleProjection = !toggleProjection;
 			}
 	}
-
-	
-
 }
 
 void SpecialKeyboard(int key, int x, int y)
@@ -1079,11 +1044,9 @@ int main(int argc, char* argv [])
 	glutSpecialFunc(SpecialKeyboard);
 	glutMouseFunc(Mouse);
 	glutMotionFunc(MouseMovement);
+	
 	glutDisplayFunc(Display);
 	glutIdleFunc(Idle);
-
-	//Enabling the clip distance at index 0
-	glEnable(GL_CLIP_DISTANCE0);
 
 	//Initialize GLEW
 	glewInit();
