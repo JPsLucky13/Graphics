@@ -42,6 +42,30 @@ GLuint VBLight;
 GLuint NBLight;
 GLuint VAOLight;
 
+//Vertex buffers for the tree
+cy::TriMesh treeMesh;
+GLuint VBTree;
+GLuint NBTree;
+GLuint VAOTree;
+//Texture Objects
+GLuint TOTree;
+
+//Vertex buffers for the boat
+cy::TriMesh boatMesh;
+GLuint VBBoat;
+GLuint NBBoat;
+GLuint VAOBoat;
+//Texture Objects
+GLuint TOBoat;
+
+//Vertex buffers for the terrain
+cy::TriMesh terrainMesh;
+GLuint VBTerrain;
+GLuint NBTerrain;
+GLuint VAOTerrain;
+//Texture Objects
+GLuint TOTerrain;
+
 //Normal Buffer
 GLuint NBO;
 
@@ -52,6 +76,7 @@ GLuint UVBO;
 GLuint TO;
 GLuint TO2;
 GLuint DUDVO;
+GLuint NORMALO;
 
 //Cube Mesh
 cy::TriMesh cubeMesh;
@@ -61,6 +86,9 @@ cy::GLSLProgram planeShaderProgram;
 
 //Shader Program for the water plane
 cy::GLSLProgram waterShaderProgram;
+
+//Shader Program for the terrain
+cy::GLSLProgram terrainShaderProgram;
 
 //Shader for the cube
 cy::GLSLProgram cubeShaderProgram;
@@ -114,7 +142,7 @@ cy::Point3f lastMousePosition;
 cy::Point3f mouseDirection;
 
 //Wave speed
-const float WAVE_SPEED = 0.01f;
+const float WAVE_SPEED = 0.00095f;
 float moveFactor = 0.0f;
 
 //Matrices
@@ -468,6 +496,210 @@ void CreateLightMesh()
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
 }
 
+void CreateBoatMesh()
+{
+	glGenVertexArrays(1, &VAOBoat);
+	glBindVertexArray(VAOBoat);
+
+	glGenBuffers(1, &VBBoat);
+	glBindBuffer(GL_ARRAY_BUFFER, VBBoat);
+
+	bool result = boatMesh.LoadFromFileObj("Models/boat.obj");
+	boatMesh.ComputeBoundingBox();
+
+	//Create the array of vertices from the triangle vertices
+	cy::Point3f * triangleVertices = new cy::Point3f[boatMesh.NF() * 3];
+
+	unsigned int vertexIndex = 0;
+
+	for (size_t i = 0; i < boatMesh.NF(); i++)
+	{
+		triangleVertices[vertexIndex] = boatMesh.V(boatMesh.F(i).v[0]);
+		triangleVertices[vertexIndex + 1] = boatMesh.V(boatMesh.F(i).v[1]);
+		triangleVertices[vertexIndex + 2] = boatMesh.V(boatMesh.F(i).v[2]);
+		vertexIndex += 3;
+	}
+
+	glBufferData(GL_ARRAY_BUFFER, boatMesh.NF() * 3 * sizeof(cy::Point3f), triangleVertices, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+	glGenBuffers(1, &NBBoat);
+	glBindBuffer(GL_ARRAY_BUFFER, NBBoat);
+
+	boatMesh.ComputeNormals();
+
+	//Create the array of vertex normals from the triangle vertex normals
+	cy::Point3f * triangleVertexNormals = new cy::Point3f[boatMesh.NF() * 3];
+
+	unsigned int vertexNormalIndex = 0;
+
+	for (size_t i = 0; i < boatMesh.NF(); i++)
+	{
+		triangleVertexNormals[vertexNormalIndex] = boatMesh.VN(boatMesh.FN(i).v[0]);
+		triangleVertexNormals[vertexNormalIndex + 1] = boatMesh.VN(boatMesh.FN(i).v[1]);
+		triangleVertexNormals[vertexNormalIndex + 2] = boatMesh.VN(boatMesh.FN(i).v[2]);
+		vertexNormalIndex += 3;
+	}
+
+	glBufferData(GL_ARRAY_BUFFER, boatMesh.NF() * 3 * sizeof(cy::Point3f), triangleVertexNormals, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+	//Create the array of vertex uvs from the triangle vertex uvs
+	cy::Point2f * triangleVertexTextureCoords = new cy::Point2f[boatMesh.NF() * 3];
+
+	unsigned int vertexTextureIndex = 0;
+
+	for (size_t i = 0; i < boatMesh.NF(); i++)
+	{
+		triangleVertexTextureCoords[vertexTextureIndex] = cy::Point2f(boatMesh.VT(boatMesh.FT(i).v[0]));
+		triangleVertexTextureCoords[vertexTextureIndex + 1] = cy::Point2f(boatMesh.VT(boatMesh.FT(i).v[1]));
+		triangleVertexTextureCoords[vertexTextureIndex + 2] = cy::Point2f(boatMesh.VT(boatMesh.FT(i).v[2]));
+		vertexTextureIndex += 3;
+	}
+	glBufferData(GL_ARRAY_BUFFER, boatMesh.NF() * 3 * sizeof(cy::Point2f), triangleVertexTextureCoords, GL_STATIC_DRAW);
+
+	glEnableVertexAttribArray(2);
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, 0);
+}
+
+void CreateTreeMesh()
+{
+	glGenVertexArrays(1, &VAOTree);
+	glBindVertexArray(VAOTree);
+
+	glGenBuffers(1, &VBTree);
+	glBindBuffer(GL_ARRAY_BUFFER, VBTree);
+
+	bool result = treeMesh.LoadFromFileObj("Models/MapleTree.obj");
+	treeMesh.ComputeBoundingBox();
+
+	//Create the array of vertices from the triangle vertices
+	cy::Point3f * triangleVertices = new cy::Point3f[treeMesh.NF() * 3];
+
+	unsigned int vertexIndex = 0;
+
+	for (size_t i = 0; i < treeMesh.NF(); i++)
+	{
+		triangleVertices[vertexIndex] = treeMesh.V(treeMesh.F(i).v[0]);
+		triangleVertices[vertexIndex + 1] = treeMesh.V(treeMesh.F(i).v[1]);
+		triangleVertices[vertexIndex + 2] = treeMesh.V(treeMesh.F(i).v[2]);
+		vertexIndex += 3;
+	}
+
+	glBufferData(GL_ARRAY_BUFFER, treeMesh.NF() * 3 * sizeof(cy::Point3f), triangleVertices, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+	glGenBuffers(1, &NBTree);
+	glBindBuffer(GL_ARRAY_BUFFER, NBTree);
+
+	treeMesh.ComputeNormals();
+
+	//Create the array of vertex normals from the triangle vertex normals
+	cy::Point3f * triangleVertexNormals = new cy::Point3f[treeMesh.NF() * 3];
+
+	unsigned int vertexNormalIndex = 0;
+
+	for (size_t i = 0; i < treeMesh.NF(); i++)
+	{
+		triangleVertexNormals[vertexNormalIndex] = treeMesh.VN(treeMesh.FN(i).v[0]);
+		triangleVertexNormals[vertexNormalIndex + 1] = treeMesh.VN(treeMesh.FN(i).v[1]);
+		triangleVertexNormals[vertexNormalIndex + 2] = treeMesh.VN(treeMesh.FN(i).v[2]);
+		vertexNormalIndex += 3;
+	}
+
+	glBufferData(GL_ARRAY_BUFFER, treeMesh.NF() * 3 * sizeof(cy::Point3f), triangleVertexNormals, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+	//Create the array of vertex uvs from the triangle vertex uvs
+	cy::Point2f * triangleVertexTextureCoords = new cy::Point2f[treeMesh.NF() * 3];
+
+	unsigned int vertexTextureIndex = 0;
+
+	for (size_t i = 0; i < treeMesh.NF(); i++)
+	{
+		triangleVertexTextureCoords[vertexTextureIndex] = cy::Point2f(treeMesh.VT(treeMesh.FT(i).v[0]));
+		triangleVertexTextureCoords[vertexTextureIndex + 1] = cy::Point2f(treeMesh.VT(treeMesh.FT(i).v[1]));
+		triangleVertexTextureCoords[vertexTextureIndex + 2] = cy::Point2f(treeMesh.VT(treeMesh.FT(i).v[2]));
+		vertexTextureIndex += 3;
+	}
+	glBufferData(GL_ARRAY_BUFFER, treeMesh.NF() * 3 * sizeof(cy::Point2f), triangleVertexTextureCoords, GL_STATIC_DRAW);
+
+	glEnableVertexAttribArray(2);
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, 0);
+}
+
+void CreateTerrainMesh()
+{
+	glGenVertexArrays(1, &VAOTerrain);
+	glBindVertexArray(VAOTerrain);
+
+	glGenBuffers(1, &VBTerrain);
+	glBindBuffer(GL_ARRAY_BUFFER, VBTerrain);
+
+	bool result = terrainMesh.LoadFromFileObj("Models/terrain.obj");
+	terrainMesh.ComputeBoundingBox();
+
+	//Create the array of vertices from the triangle vertices
+	cy::Point3f * triangleVertices = new cy::Point3f[terrainMesh.NF() * 3];
+
+	unsigned int vertexIndex = 0;
+
+	for (size_t i = 0; i < terrainMesh.NF(); i++)
+	{
+		triangleVertices[vertexIndex] = terrainMesh.V(terrainMesh.F(i).v[0]);
+		triangleVertices[vertexIndex + 1] = terrainMesh.V(terrainMesh.F(i).v[1]);
+		triangleVertices[vertexIndex + 2] = terrainMesh.V(terrainMesh.F(i).v[2]);
+		vertexIndex += 3;
+	}
+
+	glBufferData(GL_ARRAY_BUFFER, terrainMesh.NF() * 3 * sizeof(cy::Point3f), triangleVertices, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+	glGenBuffers(1, &NBTerrain);
+	glBindBuffer(GL_ARRAY_BUFFER, NBTerrain);
+
+	terrainMesh.ComputeNormals();
+
+	//Create the array of vertex normals from the triangle vertex normals
+	cy::Point3f * triangleVertexNormals = new cy::Point3f[terrainMesh.NF() * 3];
+
+	unsigned int vertexNormalIndex = 0;
+
+	for (size_t i = 0; i < terrainMesh.NF(); i++)
+	{
+		triangleVertexNormals[vertexNormalIndex] = terrainMesh.VN(terrainMesh.FN(i).v[0]);
+		triangleVertexNormals[vertexNormalIndex + 1] = terrainMesh.VN(terrainMesh.FN(i).v[1]);
+		triangleVertexNormals[vertexNormalIndex + 2] = terrainMesh.VN(terrainMesh.FN(i).v[2]);
+		vertexNormalIndex += 3;
+	}
+
+	glBufferData(GL_ARRAY_BUFFER, terrainMesh.NF() * 3 * sizeof(cy::Point3f), triangleVertexNormals, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+	//Create the array of vertex uvs from the triangle vertex uvs
+	cy::Point2f * triangleVertexTextureCoords = new cy::Point2f[terrainMesh.NF() * 3];
+
+	unsigned int vertexTextureIndex = 0;
+
+	for (size_t i = 0; i < terrainMesh.NF(); i++)
+	{
+		triangleVertexTextureCoords[vertexTextureIndex] = cy::Point2f(terrainMesh.VT(terrainMesh.FT(i).v[0]));
+		triangleVertexTextureCoords[vertexTextureIndex + 1] = cy::Point2f(terrainMesh.VT(terrainMesh.FT(i).v[1]));
+		triangleVertexTextureCoords[vertexTextureIndex + 2] = cy::Point2f(terrainMesh.VT(terrainMesh.FT(i).v[2]));
+		vertexTextureIndex += 3;
+	}
+	glBufferData(GL_ARRAY_BUFFER, terrainMesh.NF() * 3 * sizeof(cy::Point2f), triangleVertexTextureCoords, GL_STATIC_DRAW);
+
+	glEnableVertexAttribArray(2);
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, 0);
+}
+
 void CreateTexture(std::string fileName)
 {
 	std::vector<unsigned char> image; //the raw pixels
@@ -483,8 +715,8 @@ void CreateTexture(std::string fileName)
 	
 	glTexParameterf(textureUnitType, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameterf(textureUnitType, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(textureUnitType, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(textureUnitType, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(textureUnitType, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(textureUnitType, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
 	glGenerateMipmap(textureUnitType);
 }
@@ -501,8 +733,9 @@ void CreateCubeMapTextures()
 	fileNames.push_back("Textures/CubeTextures/cubemap_negy.png");
 	fileNames.push_back("Textures/CubeTextures/cubemap_posz.png");
 	fileNames.push_back("Textures/CubeTextures/cubemap_negz.png");
-
 	
+	cubeMapTexture.Initialize();
+
 	//decode
 	unsigned error = lodepng::decode(image, width, height, fileNames[0], LodePNGColorType::LCT_RGB);
 
@@ -557,6 +790,7 @@ void CreateCubeMapTextures()
 	cubeMapTexture.SetImage(cubeMapTexture.NEGATIVE_Z, image.data(), 3, width, height);
 	image.clear();
 
+
 	cubeMapTexture.SetSeamless();
 	cubeMapTexture.SetFilteringMode(GL_LINEAR_MIPMAP_LINEAR, 0);
 	cubeMapTexture.SetMaxAnisotropy();
@@ -566,7 +800,7 @@ void CreateCubeMapTextures()
 
 void CreateDepthMap()
 {
-	depthMap.Initialize(true, 4096, 4096, GL_DEPTH_COMPONENT24);
+	depthMap.Initialize(true, 4096, 4096, GL_DEPTH_COMPONENT);
 	depthMap.SetTextureFilteringMode(GL_LINEAR, GL_LINEAR);
 	depthMap.SetTextureWrappingMode(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 	depthMap.SetTextureMaxAnisotropy();
@@ -634,6 +868,16 @@ void CreateWaterPlaneShader()
 	waterShaderProgram.Build(&vertexShader, &fragmentShader);
 }
 
+void CreateTerrainShader()
+{
+	//The Shader Program
+	cy::GLSLShader vertexShader;
+	vertexShader.CompileFile("Shaders/Vertex/terrain.cgfx", GL_VERTEX_SHADER);
+	cy::GLSLShader fragmentShader;
+	fragmentShader.CompileFile("Shaders/Fragment/terrain.cgfx", GL_FRAGMENT_SHADER);
+	terrainShaderProgram.Build(&vertexShader, &fragmentShader);
+}
+
 void CreateCubeShaders()
 {
 	//The Shader Program
@@ -687,6 +931,7 @@ void RenderScene(cy::Point4f clipPlane)
 	inverseTransposeOfView.Transpose();
 	cameraDistance = cameraPositionMatrix.GetTrans().Length();
 
+
 	shaderProgram.Bind();
 	//The clipping plane
 	shaderProgram.SetUniform("plane", clipPlane);
@@ -702,45 +947,92 @@ void RenderScene(cy::Point4f clipPlane)
 	shaderProgram.SetUniform("lightPosition", lightCameraMatrix.GetTrans());
 	shaderProgram.SetUniform("viewerPosition", viewerPosition);
 	
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(textureUnitType, TO);
+
 
 	////Set the parameters of the renderTexture object
 	glBindVertexArray(VAO);
 	glDrawArrays(GL_TRIANGLES, 0, mesh.NF() * 3);
 
-
-	//Draw teapot 2
-	modelMatrix = cy::Matrix4<float>::MatrixTrans(-(mesh.GetBoundMin() + mesh.GetBoundMax())* 0.5f);
-	modelMatrix.AddTrans(cy::Point3f(0.0f, -20.0f, 0.0f));
-	lightMatrix = lightRotationMatrix * lightPositionMatrix;
-	lightCameraMatrix = viewMatrix * lightRotationMatrix * lightPositionMatrix;
-	viewerPosition = viewMatrix * cameraPositionMatrix.GetTrans();
-
-	mv = viewMatrix * modelMatrix;
+	//Draw boat 1
+	cy::Matrix4f boatOneScaleMatrix = cy::Matrix4<float>::MatrixScale(cy::Point3f(5.0f, 5.0f, 5.0f));
+	cy::Matrix4f boatOneRotationMatrix = cy::Matrix4<float>::MatrixRotationY(20.0f) * cy::Matrix4<float>::MatrixRotationX(0.0f);
+	cy::Matrix4f boatOnePositionMatrix = cy::Matrix4<float>::MatrixTrans(cy::Point3f(0.0f, -15.0f, 0.0f));
+	modelMatrix = boatOnePositionMatrix * boatOneRotationMatrix * boatOneScaleMatrix;
 	mvp = projectionMatrix * viewMatrix * modelMatrix;
-	inverseTransposeOfView = (viewMatrix * modelMatrix).GetSubMatrix3();
-	inverseTransposeOfView.Invert();
-	inverseTransposeOfView.Transpose();
-	cameraDistance = cameraPositionMatrix.GetTrans().Length();
 
-	shaderProgram.Bind();
-
-	//The clipping plane
-	shaderProgram.SetUniform("plane", clipPlane);
-	shaderProgram.SetUniform("diffuse", cy::Point3f(0.5, 0.5, 0.2));
-	shaderProgram.SetUniformMatrix4("mv", mv.data);
-	shaderProgram.SetUniformMatrix4("mvp", mvp.data);
-	shaderProgram.SetUniformMatrix4("lightSpaceMatrix", lightSpaceMatrix.data);
-	shaderProgram.SetUniformMatrix3("inverseCM", inverseTransposeOfView.data);
 	shaderProgram.SetUniformMatrix4("modelMatrix", modelMatrix.data);
-	shaderProgram.SetUniformMatrix4("viewMatrix", viewMatrix.data);
-	shaderProgram.SetUniform("worldLightPosition", lightMatrix.GetTrans());
-	shaderProgram.SetUniform("lightPosition", lightCameraMatrix.GetTrans());
-	shaderProgram.SetUniform("viewerPosition", viewerPosition);
+	shaderProgram.SetUniformMatrix4("mvp", mvp.data);
 
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(textureUnitType, TOBoat);
 
 	////Set the parameters of the renderTexture object
-	glBindVertexArray(VAO);
-	glDrawArrays(GL_TRIANGLES, 0, mesh.NF() * 3);
+	glBindVertexArray(VAOBoat);
+	glDrawArrays(GL_TRIANGLES, 0, boatMesh.NF() * 3);
+
+
+	//Draw tree 1
+	cy::Matrix4f treeOneRotationMatrix = cy::Matrix4<float>::MatrixRotationY(0.0f) * cy::Matrix4<float>::MatrixRotationX(0.0f);
+	cy::Matrix4f treeOnePositionMatrix = cy::Matrix4<float>::MatrixTrans(cy::Point3f(40.0f, 1.0f, 0.0f));
+	modelMatrix = treeOnePositionMatrix * treeOneRotationMatrix;
+	mvp = projectionMatrix * viewMatrix * modelMatrix;
+
+	shaderProgram.SetUniformMatrix4("modelMatrix", modelMatrix.data);
+	shaderProgram.SetUniformMatrix4("mvp", mvp.data);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(textureUnitType, TOTree);
+
+
+	glBindVertexArray(VAOTree);
+	glDrawArrays(GL_TRIANGLES, 0, treeMesh.NF() * 3);
+
+	//Draw tree 2
+	cy::Matrix4f treeTwoRotationMatrix = cy::Matrix4<float>::MatrixRotationY(0.0f) * cy::Matrix4<float>::MatrixRotationX(0.0f);
+	cy::Matrix4f treeTwoPositionMatrix = cy::Matrix4<float>::MatrixTrans(cy::Point3f(-40.0f, 1.0f, 20.0f));
+	modelMatrix = treeTwoPositionMatrix * treeTwoRotationMatrix;
+	mvp = projectionMatrix * viewMatrix * modelMatrix;
+
+	shaderProgram.SetUniformMatrix4("modelMatrix", modelMatrix.data);
+	shaderProgram.SetUniformMatrix4("mvp", mvp.data);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(textureUnitType, TOTree);
+
+	glBindVertexArray(VAOTree);
+	glDrawArrays(GL_TRIANGLES, 0, treeMesh.NF() * 3);
+
+	//Draw terrain
+	cy::Matrix4f terrainScaleMatrix = cy::Matrix4<float>::MatrixScale(cy::Point3f(150.0f, 150.0f, 150.0f));
+	cy::Matrix4f terrainRotationMatrix = cy::Matrix4<float>::MatrixRotationY(0.0f) * cy::Matrix4<float>::MatrixRotationX(0.0f);
+	cy::Matrix4f terrainPositionMatrix = cy::Matrix4<float>::MatrixTrans(cy::Point3f(90.0f, -60.0f, -145.0f));
+	modelMatrix = terrainPositionMatrix * terrainRotationMatrix * terrainScaleMatrix;
+	mvp = projectionMatrix * viewMatrix * modelMatrix;
+
+	terrainShaderProgram.Bind();
+	//The clipping plane
+	terrainShaderProgram.SetUniform("plane", clipPlane);
+
+	terrainShaderProgram.SetUniformMatrix4("mv", mv.data);
+	terrainShaderProgram.SetUniformMatrix4("mvp", mvp.data);
+	terrainShaderProgram.SetUniformMatrix4("lightSpaceMatrix", lightSpaceMatrix.data);
+	terrainShaderProgram.SetUniformMatrix3("inverseCM", inverseTransposeOfView.data);
+	terrainShaderProgram.SetUniformMatrix4("modelMatrix", modelMatrix.data);
+	terrainShaderProgram.SetUniformMatrix4("viewMatrix", viewMatrix.data);
+	terrainShaderProgram.SetUniform("worldLightPosition", lightMatrix.GetTrans());
+	terrainShaderProgram.SetUniform("lightPosition", lightCameraMatrix.GetTrans());
+	terrainShaderProgram.SetUniform("viewerPosition", viewerPosition);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(textureUnitType, TOTerrain);
+
+	glBindVertexArray(VAOTerrain);
+	glDrawArrays(GL_TRIANGLES, 0, terrainMesh.NF() * 3);
+
+
 }
 
 void Display()
@@ -750,12 +1042,44 @@ void Display()
 
 	//Create the render target
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+
+	renderTexture.Bind();
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glDepthMask(GL_FALSE);
+
+	//Invert the camera
+	float distance = 2.0f * (cameraPositionMatrix.GetTrans().y);
+	cameraPositionMatrix.AddTrans(cy::Point3f(0.0f, -distance, 0.0f));
+	cameraRotationMatrix = cy::Matrix4<float>::MatrixRotationY(rotationY) * cy::Matrix4<float>::MatrixRotationX(-rotationX);
+	viewMatrix = cameraPositionMatrix * cameraRotationMatrix;
+	cy::Matrix4<float> reflectedRotation = cy::Matrix4<float>::MatrixRotationY(rotationY) * cy::Matrix4<float>::MatrixRotationX(-rotationX);
+	mvp = projectionMatrix * cameraRotationMatrix;
+
+	cubeShaderProgram.Bind();
+	cubeShaderProgram.SetUniformMatrix4("mvp", mvp.data);
+
+	cubeShaderProgram.SetUniform("samplerCubeMap", 0);
+	cubeMapTexture.Bind(0);
+
+	glBindVertexArray(VAOCube);
+	glDrawArrays(GL_TRIANGLES, 0, cubeMesh.NF() * 3);
+
+	glDepthMask(GL_TRUE);
+	renderTexture.Unbind();
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	cameraPositionMatrix.AddTrans(cy::Point3f(0.0f, distance, 0.0f));
+	cameraRotationMatrix = cy::Matrix4<float>::MatrixRotationY(rotationY) * cy::Matrix4<float>::MatrixRotationX(rotationX);
+	viewMatrix = cameraPositionMatrix * cameraRotationMatrix;
+
 	//Bind the reflectionTexture;
 	reflectionTexture.Bind();
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	//Invert the camera
-	float distance = 2.0f * (cameraPositionMatrix.GetTrans().y);
+	distance = 2.0f * (cameraPositionMatrix.GetTrans().y);
 	cameraPositionMatrix.AddTrans(cy::Point3f(0.0f,-distance,0.0f));
 	cameraRotationMatrix = cy::Matrix4<float>::MatrixRotationY(rotationY) * cy::Matrix4<float>::MatrixRotationX(-rotationX);
 	viewMatrix = cameraPositionMatrix * cameraRotationMatrix;
@@ -774,10 +1098,39 @@ void Display()
 	RenderScene(cy::Point4f(0.0, -1.0, 0.0, 20.0));
 	refractionTexture.Unbind();
 
+	//Bind the depthTexture for the refraction 
+	depthMap.Bind();
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	//Enable Alpha Blending
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+
+	RenderScene(cy::Point4f(0.0, -1.0, 0.0, 20.0));
+	depthMap.Unbind();
+
+	glDisable(GL_BLEND);
 
 	//Disable the clip planes
 	glDisable(GL_CLIP_DISTANCE0);
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	//Draw the cube map
+	glDepthMask(GL_FALSE);
+	viewMatrix = cameraPositionMatrix * cameraRotationMatrix;
+	mvp = projectionMatrix * cameraRotationMatrix;
+
+	cubeShaderProgram.Bind();
+	cubeShaderProgram.SetUniformMatrix4("mvp", mvp.data);
+
+	cubeShaderProgram.SetUniform("samplerCubeMap", 0);
+	cubeMapTexture.Bind(0);
+
+	glBindVertexArray(VAOCube);
+	glDrawArrays(GL_TRIANGLES, 0, cubeMesh.NF() * 3);
+	glDepthMask(GL_TRUE);
 
 	RenderScene(cy::Point4f(0.0, 0.0, 0.0, 0.0));
 
@@ -789,6 +1142,8 @@ void Display()
 	inverseTransposeOfView = (viewMatrix * modelMatrix).GetSubMatrix3();
 	inverseTransposeOfView.Invert();
 	inverseTransposeOfView.Transpose();
+
+	cy::Point3f lightPosition = (lightRotationMatrix * lightPositionMatrix).GetTrans();
 	
 	waterShaderProgram.Bind();
 	waterShaderProgram.SetUniformMatrix4("mvp", mvp.data);
@@ -797,6 +1152,10 @@ void Display()
 	waterShaderProgram.SetUniform("moveFactor", moveFactor);
 	waterShaderProgram.SetUniform("screenWidth", screenWidth);
 	waterShaderProgram.SetUniform("screenHeight", screenHeight);
+	waterShaderProgram.SetUniform("lightPosition", lightPosition);
+	waterShaderProgram.SetUniform("lightColor", cy::Point3f(1.0,1.0,1.0));
+	cy::Matrix4<float> reflectedMvp = projectionMatrix * cameraPositionMatrix * reflectedRotation * modelMatrix;
+	waterShaderProgram.SetUniformMatrix4("reflectedMvp", reflectedMvp.data);
 
 	waterShaderProgram.SetUniform("reflectionTexture", 0);
 	reflectionTexture.BindTexture(0);
@@ -808,6 +1167,17 @@ void Display()
 	waterShaderProgram.SetUniform("dudvMap", 2);
 	glActiveTexture(GL_TEXTURE0 + 2);
 	glBindTexture(textureUnitType, DUDVO);
+
+	waterShaderProgram.SetUniform("normalMap", 3);
+	glActiveTexture(GL_TEXTURE0 + 3);
+	glBindTexture(textureUnitType, NORMALO);
+
+	waterShaderProgram.SetUniform("depthMap", 4);
+	depthMap.BindTexture(4);
+
+	waterShaderProgram.SetUniform("cubeMap", 5);
+	renderTexture.BindTexture(5);
+	
 
 	glBindVertexArray(VAOPlane);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -831,18 +1201,28 @@ void Keyboard(unsigned char key, int x, int y)
 			}
 			else
 			{
-				projectionMatrix = cy::Matrix4<float>::MatrixPerspective(0.785398f, screenWidth / screenHeight, 0.1f, 100);
+				projectionMatrix = cy::Matrix4<float>::MatrixPerspective(0.785398f, screenWidth / screenHeight, 0.1f, 1000);
 				toggleProjection = !toggleProjection;
 			}
 	}
 }
 
-void SpecialKeyboard(int key, int x, int y)
+void RefreshAllShaders()
 {
-	if(key == GLUT_KEY_F6)
-		CreateShaders();
+	CreateShaders();
+	CreateShadowShader();
+	CreateSimpleShader();
+	CreateWaterPlaneShader();
 }
 
+void SpecialKeyboard(int key, int x, int y)
+{
+	if (key == GLUT_KEY_F6) 
+	{
+		RefreshAllShaders();
+	}
+		
+}
 
 void Mouse(int button, int state, int x, int y)
 {
@@ -981,7 +1361,6 @@ void MouseMovement(int x, int y)
 	}
 }
 
-
 void Idle()
 {
 	red += colorChangeSpeed;
@@ -1060,18 +1439,72 @@ int main(int argc, char* argv [])
 
 	CreateMesh(path.c_str());
 
+	glGenTextures(1, &TO);
+	glBindTexture(textureUnitType, TO);
+
+	//Create the diffuse texture
+	CreateTexture("Models/brick.png");
+
+	glGenTextures(1, &TO2);
+	glBindTexture(textureUnitType, TO2);
+
+	//Create the diffuse texture
+	CreateTexture("Models/brick-specular.png");
+
+	//Tree mesh Initialization
+	CreateTreeMesh();
+
+	//The texture object of the tree
+	glGenTextures(1, &TOTree);
+	glBindTexture(textureUnitType, TOTree);
+
+	//Create the diffuse texture
+	CreateTexture("Models/maple_bark.png");
+
+	//Boat mesh Initialization
+	CreateBoatMesh();
+
+	//The texture object of the boat
+	glGenTextures(1, &TOBoat);
+	glBindTexture(textureUnitType, TOBoat);
+
+	//Create the diffuse texture
+	CreateTexture("Models/maple_bark.png");
+
+	//Terrain mesh Initialization
+	CreateTerrainMesh();
+
+	//The texture object of the terrain
+	glGenTextures(1, &TOTerrain);
+	glBindTexture(textureUnitType, TOTerrain);
+
+	//Create the diffuse texture
+	CreateTexture("Models/grass.png");
+
+	CreateTerrainShader();
+
+	renderTexture.Initialize(true, 3, screenWidth, screenHeight);
+	renderTexture.SetTextureFilteringMode(GL_LINEAR_MIPMAP_LINEAR, 0);
+	renderTexture.SetTextureMaxAnisotropy();
+	renderTexture.BuildTextureMipmaps();
+
+
 	InitializeReflectionRenderTexture();
 	InitializeRefractionRenderTexture();
 
 	CreateShaders();
 
-	//CreateDepthMap();
-	//CreateShadowMapShader();
-	//CreateShadowShader();
+	CreateDepthMap();
 
 	//Create the plane mesh for the water
-	CreatePlaneMesh(70.0f);
+	CreatePlaneMesh(120.0f);
 	CreateWaterPlaneShader();
+
+	//Create the cube Mesh
+	CreateCubeMesh();
+	CreateCubeMapTextures();
+	CreateCubeShaders();
+
 
 	//Create the light Mesh
 	CreateLightMesh();
@@ -1081,6 +1514,11 @@ int main(int argc, char* argv [])
 	glGenTextures(1, &DUDVO);
 	glBindTexture(textureUnitType, DUDVO);
 	CreateTexture("DuDvMaps/waterDUDV.png");
+
+	//Create the normal map
+	glGenTextures(1, &NORMALO);
+	glBindTexture(textureUnitType, NORMALO);
+	CreateTexture("NormalMaps/normalMap.png");
 
 	glutMainLoop();
 	return 0;

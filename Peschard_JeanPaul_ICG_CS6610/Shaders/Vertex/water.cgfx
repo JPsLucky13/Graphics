@@ -7,17 +7,22 @@ layout (location = 2) in vec2 UVs;
 out vec4 clipSpace;
 out vec2 textureCoords;
 out vec3 toCameraVector;
+out vec3 fromLightVector;
+out vec3 positionInModelSpace;
 
 uniform mat4 mvp;
 uniform vec3 cameraPosition;
 uniform mat4 modelMatrix;
+uniform vec3 lightPosition;
 
 
 void main()
 {
+	positionInModelSpace = Position;
 	vec4 worldPosition = modelMatrix * vec4(Position,1.0); 
-	clipSpace = mvp * vec4(Position,1.0);
+	clipSpace = mvp * vec4(Position.x,Position.y,Position.z ,1.0);
 	gl_Position = clipSpace;
 	textureCoords = UVs;
 	toCameraVector = cameraPosition - worldPosition.xyz;
+	fromLightVector = worldPosition.xyz - lightPosition;
 }

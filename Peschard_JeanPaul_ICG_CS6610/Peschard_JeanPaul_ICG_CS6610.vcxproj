@@ -119,7 +119,8 @@ xcopy /E /S "$(ProjectDir)Models" "$(OutDir)\Models\" /y  /d
 xcopy /E /S "$(ProjectDir)Shaders" "$(OutDir)\Shaders\" /y  /d
 
 xcopy /E /S "$(ProjectDir)Textures" "$(OutDir)\Textures\" /y  /d
-xcopy /E /S "$(ProjectDir)DuDvMaps" "$(OutDir)\DuDvMaps\" /y  /d</Command>
+xcopy /E /S "$(ProjectDir)DuDvMaps" "$(OutDir)\DuDvMaps\" /y  /d
+xcopy /E /S "$(ProjectDir)NormalMaps" "$(OutDir)\NormalMaps\" /y  /d</Command>
       <Outputs>ALWAYS_RUN</Outputs>
     </CustomBuildStep>
   </ItemDefinitionGroup>
@@ -152,7 +153,9 @@ xcopy /E /S "$(ProjectDir)Models" "$(OutDir)\Models\" /y  /d
 xcopy /E /S "$(ProjectDir)Shaders" "$(OutDir)\Shaders\" /y  /d
 
 xcopy /E /S "$(ProjectDir)Textures" "$(OutDir)\Textures\" /y  /d
-xcopy /E /S "$(ProjectDir)DuDvMaps" "$(OutDir)\DuDvMaps\" /y  /d</Command>
+xcopy /E /S "$(ProjectDir)DuDvMaps" "$(OutDir)\DuDvMaps\" /y  /d
+
+xcopy /E /S "$(ProjectDir)NormalMaps" "$(OutDir)\NormalMaps\" /y  /d</Command>
       <Outputs>ALWAYS_RUN</Outputs>
     </CustomBuildStep>
   </ItemDefinitionGroup>
@@ -189,7 +192,8 @@ xcopy /E /S "$(ProjectDir)Models" "$(OutDir)\Models\" /y  /d
 xcopy /E /S "$(ProjectDir)Shaders" "$(OutDir)\Shaders\" /y  /d
 
 xcopy /E /S "$(ProjectDir)Textures" "$(OutDir)\Textures\" /y  /d
-xcopy /E /S "$(ProjectDir)DuDvMaps" "$(OutDir)\DuDvMaps\" /y  /d</Command>
+xcopy /E /S "$(ProjectDir)DuDvMaps" "$(OutDir)\DuDvMaps\" /y  /d
+xcopy /E /S "$(ProjectDir)NormalMaps" "$(OutDir)\NormalMaps\" /y  /d</Command>
       <Outputs>ALWAYS_RUN</Outputs>
     </CustomBuildStep>
   </ItemDefinitionGroup>
@@ -226,7 +230,9 @@ xcopy /E /S "$(ProjectDir)Models" "$(OutDir)\Models\" /y  /d
 xcopy /E /S "$(ProjectDir)Shaders" "$(OutDir)\Shaders\" /y  /d
 
 xcopy /E /S "$(ProjectDir)Textures" "$(OutDir)\Textures\" /y  /d
-xcopy /E /S "$(ProjectDir)DuDvMaps" "$(OutDir)\DuDvMaps\" /y  /d</Command>
+xcopy /E /S "$(ProjectDir)DuDvMaps" "$(OutDir)\DuDvMaps\" /y  /d
+
+xcopy /E /S "$(ProjectDir)NormalMaps" "$(OutDir)\NormalMaps\" /y  /d</Command>
       <Outputs>ALWAYS_RUN</Outputs>
     </CustomBuildStep>
   </ItemDefinitionGroup>

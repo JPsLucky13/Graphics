@@ -39,5 +39,5 @@ void main()
    
 	vec3 o_Light = ((clamp(dot(lightVector,normalizedNormal),0.0,1.0) * diffuse) + specular *  pow(clamp(dot(half,normalizedNormal),0.0,1.0),alpha)) + (ambient * 0.2);
 
-	FragColor = vec4(o_Light,1.0);
+	FragColor = vec4(diffuse,1.0);
 }
